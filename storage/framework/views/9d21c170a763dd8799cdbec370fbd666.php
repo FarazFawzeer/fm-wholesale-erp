@@ -1,4 +1,8 @@
 <meta charset="utf-8" />
+<script>
+    // Hide the sidebar before first paint on phones/tablets (avoids a flash while app JS loads)
+    if (window.innerWidth <= 1140) document.documentElement.setAttribute('data-sidebar-size', 'hidden');
+</script>
 <title><?php echo e(isset($subtitle) ? $subtitle . ' | ' : ''); ?><?php echo e(config('app.name', 'FM Wholesale ERP')); ?></title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="FM Wholesale ERP - wholesale business management system" />

@@ -1,122 +1,55 @@
-@extends('layouts.vertical', ['subtitle' => 'Admin View'])
+@extends('layouts.vertical', ['subtitle' => 'Users & Roles'])
 
 @section('content')
-    @include('layouts.partials.page-title', ['title' => 'Admin', 'subtitle' => 'View'])
+    <x-page-header title="Users & Roles" :crumbs="['Settings', 'Users']" />
 
-
-    <div class="card">
-        <div class="card-header">
-            <h5 class="card-title">Admin List</h5>
-            <p class="card-subtitle">All admins in your system with details.</p>
-        </div>
-
-        <div class="card-body">
-            <div class="table-responsive">
-                <div class="table-responsive">
-                    <table class="table table-hover table-centered">
-                        <thead class="table-light">
-                            <tr>
-                                <th scope="col">Name</th>
-                                <th scope="col">Email</th>
-                                <th scope="col">Role</th>
-                                <th scope="col">Updated At</th>
-                                <th scope="col">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($users as $user)
-                                <tr id="user-{{ $user->id }}">
-                                    <td>
-                                        <div class="d-flex align-items-center gap-2">
-                                            <img src="{{ $user->image_path ? asset($user->image_path) : asset('/images/users/avatar-6.jpg') }}"
-                                                alt="{{ $user->name }}" class="avatar-sm rounded-circle">
-                                            <div>
-                                                <h6 class="mb-0">{{ $user->name }}</h6>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>{{ $user->email }}</td>
-                                    <td>{{ ucfirst($user->type) }}</td>
-                                    <td>{{ $user->updated_at->format('d M Y, h:i A') }}</td>
-                                    <td>
-                                        <button type="button" class="btn btn-danger btn-sm w-100 delete-user"
-                                            data-id="{{ $user->id }}">
-                                            Delete
-                                        </button>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="5" class="text-center text-muted">No users found.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-
-                    </table>
-
-                    {{-- Pagination --}}
-                    <div class="d-flex justify-content-end mt-3">
-                        {{ $users->links() }}
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body table-wrap p-0">
+                    <div class="table-responsive">
+                        <table class="table erp-table stack mb-0">
+                            <thead><tr><th>User</th><th>Role</th><th>Status</th><th>New password</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach ($users as $u)
+                                    <tr>
+                                        <td class="td-title"><strong>{{ $u->name }}</strong><div class="small text-muted">{{ $u->email }}</div></td>
+                                        <td data-label="Role"><select form="u{{ $u->id }}" name="type" class="form-select form-select-sm">@foreach (\App\Models\User::ROLES as $r)<option @selected($u->type === $r)>{{ $r }}</option>@endforeach</select></td>
+                                        <td data-label="Status"><select form="u{{ $u->id }}" name="active" class="form-select form-select-sm"><option value="1" @selected($u->active)>Active</option><option value="0" @selected(! $u->active)>Inactive</option></select></td>
+                                        <td data-label="Password"><input form="u{{ $u->id }}" type="password" name="password" class="form-control form-control-sm" placeholder="Leave blank" autocomplete="new-password"></td>
+                                        <td class="td-actions text-end"><form method="POST" action="{{ route('users.update', $u) }}" id="u{{ $u->id }}">@csrf @method('PUT')<button class="btn btn-sm btn-light">Save</button></form></td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-
-
+            </div>
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">What each role is for</h5></div>
+                <ul class="list-group list-group-flush small">
+                    <li class="list-group-item"><strong>Super Admin / Manager</strong> - everything, including price and discount overrides, credit-limit overrides, settings and users.</li>
+                    <li class="list-group-item"><strong>Sales</strong> - quotations, invoices and receipts. Limited to the max discount and minimum price rules.</li>
+                    <li class="list-group-item"><strong>Store</strong> - GRNs, deliveries, transfers and stock adjustments.</li>
+                    <li class="list-group-item"><strong>Accounts</strong> - receipts, supplier payments, cheques, expenses and reports.</li>
+                </ul>
+                <div class="card-footer small text-muted">In this demo, menu access is not yet restricted by role. Pricing and credit overrides already are.</div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Add user</h5></div>
+                <div class="card-body">
+                    <form method="POST" action="{{ route('users.store') }}">
+                        @csrf
+                        <div class="mb-2"><label class="form-label">Name</label><input name="name" class="form-control" required></div>
+                        <div class="mb-2"><label class="form-label">Email</label><input type="email" name="email" class="form-control" required></div>
+                        <div class="mb-2"><label class="form-label">Role</label><select name="type" class="form-select">@foreach (\App\Models\User::ROLES as $r)<option>{{ $r }}</option>@endforeach</select></div>
+                        <div class="mb-3"><label class="form-label">Password</label><input type="password" name="password" class="form-control" required autocomplete="new-password"></div>
+                        <button class="btn btn-primary w-100">Add user</button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
-
-
-    <script>
-        document.querySelectorAll('.delete-user').forEach(button => {
-            button.addEventListener('click', function() {
-                let userId = this.dataset.id;
-
-                Swal.fire({
-                    title: 'Are you sure?',
-                    text: "You won't be able to revert this!",
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#3085d6',
-                    confirmButtonText: 'Yes, delete it!'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        fetch("{{ url('admin/users') }}/" + userId, {
-                                method: 'DELETE',
-                                headers: {
-                                    'X-CSRF-TOKEN': "{{ csrf_token() }}",
-                                    'Accept': 'application/json'
-                                }
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    // Remove the deleted row
-                                    document.getElementById('user-' + userId).remove();
-
-                                    Swal.fire(
-                                        'Deleted!',
-                                        data.message,
-                                        'success'
-                                    );
-                                } else {
-                                    Swal.fire(
-                                        'Error!',
-                                        data.message || 'Something went wrong!',
-                                        'error'
-                                    );
-                                }
-                            })
-                            .catch(error => {
-                                Swal.fire(
-                                    'Error!',
-                                    'Something went wrong!',
-                                    'error'
-                                );
-                            });
-                    }
-                });
-            });
-        });
-    </script>
 @endsection

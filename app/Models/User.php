@@ -58,5 +58,11 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
     ];
 
+    public const ROLES = ['Super Admin', 'Manager', 'Sales', 'Store', 'Accounts'];
 
+    /** Managers can override discount limits, minimum prices and credit blocks. */
+    public function isManager(): bool
+    {
+        return in_array($this->type, ['Super Admin', 'Admin', 'Manager']);
+    }
 }

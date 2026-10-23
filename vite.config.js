@@ -17,9 +17,10 @@ export default defineConfig({
 
                 //js
                 "resources/js/app.js",
+                "resources/js/erp.js",
+                "resources/js/pages/erp-dashboard.js",
                 "resources/js/config.js",
                 "resources/js/pages/dashboard.js",
-                "resources/js/pages/chart.js",
                 "resources/js/pages/form-quilljs.js",
                 "resources/js/pages/form-fileupload.js",
                 "resources/js/pages/form-flatepicker.js",
@@ -29,8 +30,7 @@ export default defineConfig({
                 "resources/js/pages/maps-spain.js",
                 "resources/js/pages/maps-russia.js",
                 "resources/js/pages/maps-iraq.js",
-                "resources/js/pages/maps-canada.js",
-                "resources/js/pages/chart.js"
+                "resources/js/pages/maps-canada.js"
 
             ],
             refresh: true,
