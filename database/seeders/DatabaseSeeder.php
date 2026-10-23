@@ -15,14 +15,17 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Taplox',
-            'email' => 'user@demo.com',
-            'email_verified_at' => now(),
-            'password' => Hash::make('password'),
-            'remember_token' => Str::random(10),
-        ]);
+        // Default admin account (change the password after first login)
+        User::updateOrCreate(
+            ['email' => 'admin@fmwholesale.com'],
+            [
+                'name' => 'FM Admin',
+                'type' => 'Super Admin',
+                'active' => true,
+                'email_verified_at' => now(),
+                'password' => Hash::make('password'),
+                'remember_token' => Str::random(10),
+            ]
+        );
     }
 }

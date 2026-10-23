@@ -14,10 +14,10 @@
                             <div class="text-center">
                                 <div class="mx-auto mb-4 text-center auth-logo">
                                     <a href="#" class="logo-dark">
-                                        <img src="/images/vacayguider.png" height="100" width="200" alt="logo dark">
+                                        <img src="{{ asset('images/logo-dark.png') }}" height="72" alt="FM Shoes">
                                     </a>
                                     <a href="#" class="logo-light">
-                                        <img src="/images/vacayguider.png" height="50" alt="logo light">
+                                        <img src="{{ asset('images/logo-light.png') }}" height="72" alt="FM Shoes">
                                     </a>
                                 </div>
 
@@ -33,9 +33,8 @@
                             </div>
 
                             {{-- Lock screen form --}}
-                            <form action="{{ route('login') }}" method="POST" class="mt-4">
+                            <form action="{{ route('password.confirm') }}" method="POST" class="mt-4">
                                 @csrf
-                                <input type="hidden" name="email" value="{{ Auth::user()?->email }}">
 
                                 <div class="mb-3">
                                     <label class="form-label" for="password">Password</label>

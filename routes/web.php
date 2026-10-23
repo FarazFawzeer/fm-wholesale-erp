@@ -1,15 +1,15 @@
 <?php
 
-use App\Http\Controllers\RoutingController;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RoutingController;
+use Illuminate\Support\Facades\Route;
 
+// Guest auth routes (login, logout, password reset)
 require __DIR__ . '/auth.php';
 
-Route::prefix('admin')->name('admin.')->group(function () {
+Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
 
     //admin
     Route::resource('users', UserController::class);
@@ -25,29 +25,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
 });
 
-
-
+// Template page routing (must stay last: catch-all)
 Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::get('', [RoutingController::class, 'index'])->name('root');
     Route::get('{first}/{second}/{third}', [RoutingController::class, 'thirdLevel'])->name('third');
     Route::get('{first}/{second}', [RoutingController::class, 'secondLevel'])->name('second');
     Route::get('{any}', [RoutingController::class, 'root'])->name('any');
-});
-
-
-Route::get('/login', function () {
-    return view('auth.signin');
-})->name('login');
-
-// Login action
-Route::post('/login', [LoginController::class, 'login'])->name('login.post');
-
-// Logout
-Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
-
-
-Route::middleware('auth')->group(function () {
-    Route::get('/', function () {
-        return view('index'); // create resources/views/dashboard.blade.php
-    });
 });

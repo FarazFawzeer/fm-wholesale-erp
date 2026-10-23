@@ -2,13 +2,13 @@
     <!-- Sidebar Logo -->
     <div class="logo-box">
         <a href="{{ route('any', 'index') }}" class="logo-dark">
-            <img src="/images/vacayguider.png" class="logo-sm" alt="logo sm">
-            <img src="/images/vacayguider.png" class="logo-lg" alt="logo dark" style="width: 150px; height: 75px;">
+            <img src="{{ asset('images/logo-sm.png') }}" class="logo-sm" alt="FM Shoes">
+            <img src="{{ asset('images/logo-dark.png') }}" class="logo-lg" alt="FM Shoes">
         </a>
 
         <a href="{{ route('any', 'index') }}" class="logo-light">
-            <img src="/images/vacayguider.png" class="logo-sm" alt="logo sm">
-            <img src="/images/vacayguider.png" class="logo-lg" alt="logo light" style="width: 150px; height: 75px;">
+            <img src="{{ asset('images/logo-sm.png') }}" class="logo-sm" alt="FM Shoes">
+            <img src="{{ asset('images/logo-light.png') }}" class="logo-lg" alt="FM Shoes">
         </a>
     </div>
 
