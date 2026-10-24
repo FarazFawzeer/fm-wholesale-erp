@@ -33,5 +33,23 @@ If there is no terminal: create the database on your PC with `php artisan migrat
 
 - With `SEED_DEMO=true`, the demo users `sales@`, `store@` and `accounts@fmwholesale.com` all have the password `password`. Change or deactivate them in **Settings > Users & Roles** before real use.
 - There is no public sign-up. Managers create users and reset passwords in Settings > Users & Roles.
-- **Updating later:** upload the changed files, then run `php artisan migrate --force` and `php artisan optimize:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache`.
+- **Updating later:** use `deploy-patch.bat` (see below).
 - **Backups:** export the database regularly (cPanel > Backup, or `mysqldump`). That is where all the business data lives.
+
+## Updating the live site (deploy-patch.bat)
+
+`deploy-patch.bat` (in the project folder) builds a small zip with only the files changed since the last upload, rebuilds CSS/JS when needed, and writes the exact server steps.
+
+**First time only.** Once your live site matches your latest commit:
+```
+deploy-patch.bat init
+```
+
+**Every update:**
+1. Make your changes locally and test them.
+2. Commit them (VS Code > Source Control > Commit). The tool only packs committed changes.
+3. Run `deploy-patch.bat`. It creates `deploy\patch-<date>.zip` and `deploy\patch-<date>-STEPS.txt`.
+4. Follow the STEPS file: upload and extract the zip in the project folder on the server, delete any listed files, and run the listed commands (it includes `php artisan migrate --force` only when there are new migrations).
+5. Check the live site, then run `deploy-patch.bat done` so the next patch starts from here.
+
+It never includes `.env`, `storage/`, `public/uploads/`, `node_modules/` or source SCSS/JS. If `composer.lock` changed, the steps tell you to run `composer install --no-dev` on the server.
