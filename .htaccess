@@ -1,0 +1,8 @@
+# Used only when the domain points at the project folder instead of /public
+# (common on shared/cPanel hosting). Sends every request into /public so
+# .env, app code and storage can never be downloaded.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(\.env|\.git|composer\.(json|lock)|artisan)$ - [F,L]
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

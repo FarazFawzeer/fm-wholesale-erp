@@ -53,13 +53,13 @@
                                 </div>
 
                                 <div class="d-grid">
-                                    <button class="btn btn-primary btn-lg fw-medium" type="submit">Sign In</button>
+                                    <button class="btn btn-brand btn-lg fw-medium" type="submit">Sign In</button>
                                 </div>
                             </form>
 
                         </div>
                     </div>
-
+                    <p class="text-center auth-footer mt-3 mb-0">&copy; {{ date('Y') }} FM Shoes &middot; Wholesale in imported shoes & footwear</p>
                 </div>
             </div>
         </div>

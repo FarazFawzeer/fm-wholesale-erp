@@ -15,19 +15,22 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Default admin account (change the password after first login)
+        // First admin account: set ADMIN_EMAIL / ADMIN_PASSWORD in .env on a live server
         User::updateOrCreate(
-            ['email' => 'admin@fmwholesale.com'],
+            ['email' => env('ADMIN_EMAIL', 'admin@fmwholesale.com')],
             [
                 'name' => 'FM Admin',
                 'type' => 'Super Admin',
                 'active' => true,
                 'email_verified_at' => now(),
-                'password' => Hash::make('password'),
+                'password' => Hash::make(env('ADMIN_PASSWORD', 'password')),
                 'remember_token' => Str::random(10),
             ]
         );
 
-        $this->call(DemoSeeder::class);
+        // Sample data for demos only (set SEED_DEMO=false for a clean live system)
+        if (filter_var(env('SEED_DEMO', true), FILTER_VALIDATE_BOOL)) {
+            $this->call(DemoSeeder::class);
+        }
     }
 }

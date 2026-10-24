@@ -63,7 +63,7 @@
                                 @endif
 
                                 <div class="mb-1 text-center d-grid">
-                                    <button class="btn btn-dark btn-lg fw-medium" type="submit">Unlock</button>
+                                    <button class="btn btn-brand btn-lg fw-medium" type="submit">Unlock</button>
                                 </div>
                             </form>
 

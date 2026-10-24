@@ -38,7 +38,7 @@ class DemoSeeder extends Seeder
 
     public function run(): void
     {
-        $admin = User::where('email', 'admin@fmwholesale.com')->first();
+        $admin = User::where('type', 'Super Admin')->orderBy('id')->first();
         Auth::setUser($admin);
 
         foreach ([['Nimal Perera', 'sales@fmwholesale.com', 'Sales'], ['Kamal Silva', 'store@fmwholesale.com', 'Store'],

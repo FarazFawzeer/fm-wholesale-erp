@@ -298,7 +298,7 @@ class PaymentLines {
     accountOptions(method, selected) {
         const type = method === 'cash' ? 'cash' : method === 'card' ? 'card' : 'bank';
         return this.accounts
-            .filter((a) => a.type === type || method === 'cheque')
+            .filter((a) => a.type === type)
             .map((a) => `<option value="${a.id}" ${a.id == selected ? 'selected' : ''}>${esc(a.name)}</option>`)
             .join('');
     }
@@ -310,16 +310,16 @@ class PaymentLines {
         const row = el(`
             <div class="border rounded-3 p-2 mb-2 pay-row">
                 <div class="row g-2 align-items-end">
-                    <div class="col-6 col-md-3"><label class="form-label small mb-1">Method</label>
+                    <div class="col-5"><label class="form-label small mb-1">Method</label>
                         <select class="form-select form-select-sm js-method" name="${n}[method]">
                             <option value="cash">Cash</option><option value="bank_transfer">Bank transfer</option>
                             <option value="card">Card</option><option value="cheque">Cheque</option>
                         </select></div>
-                    <div class="col-6 col-md-3"><label class="form-label small mb-1">Amount</label>
+                    <div class="col-5"><label class="form-label small mb-1">Amount</label>
                         <input type="number" step="0.01" min="0" class="form-control form-control-sm js-amount" name="${n}[amount]" value="${data.amount || ''}"></div>
-                    <div class="col-10 col-md-5"><label class="form-label small mb-1 js-acc-label">Account</label>
+                    <div class="col-2 text-end align-self-end"><button type="button" class="btn btn-sm btn-soft-danger js-del" title="Remove"><iconify-icon icon="solar:trash-bin-minimalistic-outline"></iconify-icon></button></div>
+                    <div class="col-12"><label class="form-label small mb-1 js-acc-label">Account</label>
                         <select class="form-select form-select-sm js-account" name="${n}[account_id]"></select></div>
-                    <div class="col-2 col-md-1 text-end"><button type="button" class="btn btn-sm btn-soft-danger js-del" title="Remove"><iconify-icon icon="solar:trash-bin-minimalistic-outline"></iconify-icon></button></div>
                     <div class="col-12 js-ref-wrap"><input type="text" class="form-control form-control-sm" name="${n}[reference]" placeholder="Reference (slip no, card last 4 digits...)" value="${esc(data.reference || '')}"></div>
                     <div class="col-12 js-cheque d-none"><div class="row g-2">
                         <div class="col-6 col-md-4"><input type="text" class="form-control form-control-sm" name="${n}[cheque_no]" placeholder="Cheque no"></div>

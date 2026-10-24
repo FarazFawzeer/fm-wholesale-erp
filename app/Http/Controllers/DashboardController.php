@@ -67,8 +67,8 @@ class DashboardController extends Controller
             'alerts' => Alerts::forTopbar(),
             'overdueCustomers' => Customer::whereIn('id', $overdue->pluck('customer_id')->unique())->get()
                 ->map(fn ($c) => ['customer' => $c, 'amount' => $overdue->where('customer_id', $c->id)->sum(fn ($i) => $i->balance()), 'days' => $overdue->where('customer_id', $c->id)->max(fn ($i) => $i->daysOverdue())])
-                ->sortByDesc('amount')->take(5),
-            'chequesDue' => Cheque::whereIn('status', ['pending', 'deposited'])->whereDate('cheque_date', '<=', now()->addDays(14))->orderBy('cheque_date')->limit(6)->get(),
+                ->sortByDesc('amount')->take(4),
+            'chequesDue' => Cheque::whereIn('status', ['pending', 'deposited'])->whereDate('cheque_date', '<=', now()->addDays(14))->orderBy('cheque_date')->limit(4)->get(),
             'inTransit' => PurchaseOrder::with('supplier')->whereIn('status', ['ordered', 'costed', 'partial'])->orderBy('expected_date')->limit(5)->get(),
             'recent' => Invoice::with('customer')->latest('date')->latest('id')->limit(6)->get(),
             'lowStock' => Product::where('is_active', true)->withSum('stocks as on_hand', 'qty')->get()->filter(fn ($p) => (int) $p->on_hand <= $p->reorder_level)->sortBy('on_hand')->take(5),

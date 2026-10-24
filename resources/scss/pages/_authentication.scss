@@ -4,7 +4,47 @@
 
 body {
      &.authentication-bg {
-          background: linear-gradient(90deg, hsl(220, 75%, 40%) 0%, hsl(240, 60%, 35%) 100%);
+          // FM Shoes brand: near-black with a soft red glow
+          background-color: #0d0d0f;
+          background-image:
+               radial-gradient(circle at 15% 20%, rgba(227, 30, 36, 0.28) 0%, transparent 45%),
+               radial-gradient(circle at 85% 85%, rgba(227, 30, 36, 0.18) 0%, transparent 40%),
+               linear-gradient(135deg, #18181b 0%, #0d0d0f 60%, #050505 100%);
+          background-attachment: fixed;
+
+          .card {
+               border-top: 4px solid #e31e24 !important;
+               border-radius: 14px;
+               box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55) !important;
+          }
+
+          .form-control:focus {
+               border-color: #e31e24;
+               box-shadow: 0 0 0 0.2rem rgba(227, 30, 36, 0.15);
+          }
+
+          .form-check-input:checked {
+               background-color: #e31e24;
+               border-color: #e31e24;
+          }
+
+          .btn-brand {
+               background: #e31e24;
+               border-color: #e31e24;
+               color: #fff;
+
+               &:hover,
+               &:focus {
+                    background: #c4161b;
+                    border-color: #c4161b;
+                    color: #fff;
+               }
+          }
+
+          .auth-footer {
+               color: rgba(255, 255, 255, 0.45);
+               font-size: 0.8rem;
+          }
 
           .account-pages {
                align-items: center;
