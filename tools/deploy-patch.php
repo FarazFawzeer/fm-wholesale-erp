@@ -196,17 +196,17 @@ if ($deleted) {
         $steps[] = '      ' . $d;
     }
 }
-$steps[] = $n++ . '. In cPanel > Terminal, go to the project folder and run:';
-if ($composer) {
-    $steps[] = '      composer install --no-dev --optimize-autoloader';
-}
 if ($migrations) {
-    $steps[] = '      php artisan migrate --force';
+    $steps[] = $n++ . '. Database change: ask for the SQL for ' . implode(', ', $migrations);
+    $steps[] = '   and run it in phpMyAdmin > your live database > SQL.';
 }
-$steps[] = '      php artisan optimize:clear';
-$steps[] = '      php artisan config:cache';
-$steps[] = '      php artisan route:cache';
-$steps[] = '      php artisan view:cache';
+if ($composer) {
+    $steps[] = $n++ . '. New PHP packages: upload the whole vendor/ folder too (built with composer install --no-dev).';
+}
+$steps[] = $n++ . '. Clear the old cache in File Manager (no terminal needed):';
+$steps[] = '      bootstrap/cache/   -> delete config.php and routes-v7.php if they exist';
+$steps[] = '                            (keep packages.php and services.php)';
+$steps[] = '      storage/framework/views/   -> delete all .php files inside (keep .gitignore)';
 $steps[] = $n++ . '. Open the site and check the pages you changed.';
 $steps[] = $n++ . '. On your PC run:  deploy-patch.bat done';
 $steps[] = '';
