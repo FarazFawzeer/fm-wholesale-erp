@@ -1,9 +1,9 @@
 @extends('layouts.vertical', ['subtitle' => 'Returns & Credit Notes'])
 
 @section('content')
-    <x-page-header title="Sales Returns & Credit Notes" :crumbs="['Sales', 'Credit Notes']" />
+    <x-page-header title="Returns" :crumbs="['Sales', 'Credit Notes']" />
 
-    <div class="alert alert-light small">To create a return, open the invoice and click <strong>Return / credit note</strong>.</div>
+    <div class="alert alert-light small">To take back shoes, open the invoice and click <strong>Return goods</strong>.</div>
 
     <div class="card">
         <div class="card-body table-wrap p-0">

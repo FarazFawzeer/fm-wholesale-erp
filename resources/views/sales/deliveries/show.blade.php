@@ -19,14 +19,14 @@
     </div>
 
     <table>
-        <thead><tr><th>#</th><th>Item</th><th>Sizes</th><th class="r">Pairs</th></tr></thead>
+        <thead><tr><th>#</th><th>Item</th><th>Size</th><th class="r">Pairs</th></tr></thead>
         <tbody>
             @foreach ($byProduct->values() as $n => $items)
                 @php $p = $items->first()->line->product; @endphp
                 <tr>
                     <td>{{ $n + 1 }}</td>
                     <td><span class="b">{{ $p->code }}</span> {{ $p->brand?->name }} {{ $p->name }} {{ $p->colour }}</td>
-                    <td class="sizes">@foreach ($items->sortBy(fn ($i) => (float) $i->variant->size) as $i){{ $i->variant->size }}×{{ $i->qty }}{{ ! $loop->last ? ', ' : '' }}@endforeach</td>
+                    <td>{{ $p->sizeLabel() }}</td>
                     <td class="r b">{{ $items->sum('qty') }}</td>
                 </tr>
             @endforeach

@@ -43,6 +43,32 @@ class CustomerController extends Controller
         return redirect()->route('customers.show', $customer)->with('success', 'Customer saved.');
     }
 
+    /** Quick add from a pop-up (invoice, pre-order, receipt). */
+    public function quickStore(Request $request)
+    {
+        $data = $request->validate([
+            'name' => 'required|max:255',
+            'phone' => 'nullable|max:30',
+            'city' => 'nullable|max:100',
+            'customer_group_id' => 'nullable|exists:customer_groups,id',
+            'credit_limit' => 'nullable|numeric|min:0',
+        ]);
+        $data['credit_limit'] = (float) ($data['credit_limit'] ?? 0); // empty box = no limit
+        $customer = Customer::create($data + [
+            'code' => 'CUS-' . str_pad(Customer::max('id') + 1, 3, '0', STR_PAD_LEFT),
+            'whatsapp' => $data['phone'] ?? null,
+            'payment_terms_days' => (int) setting('default_payment_terms'),
+            'is_active' => true,
+        ]);
+
+        return response()->json([
+            'id' => $customer->id,
+            'label' => $customer->name . ($customer->city ? ' - ' . $customer->city : ''),
+            'data' => ['group' => $customer->customer_group_id, 'groupName' => $customer->group?->name, 'limit' => $customer->credit_limit,
+                'balance' => 0, 'overdue' => 0, 'terms' => $customer->payment_terms_days],
+        ]);
+    }
+
     public function show(Customer $customer)
     {
         $customer->load('group');

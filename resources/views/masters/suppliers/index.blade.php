@@ -12,14 +12,14 @@
         <div class="card-body table-wrap p-0">
             <div class="table-responsive">
                 <table class="table table-hover erp-table stack">
-                    <thead><tr><th>Supplier</th><th>Country</th><th>Contact</th><th>Currency</th><th>Terms</th><th class="text-end">POs</th><th class="text-end">We owe</th></tr></thead>
+                    <thead><tr><th>Supplier</th><th>Country</th><th>Contact</th><th>Terms</th><th class="text-end">POs</th><th class="text-end">We owe</th></tr></thead>
                     <tbody>
                         @forelse ($suppliers as $s)
                             <tr>
                                 <td class="td-title"><a href="{{ route('suppliers.show', $s) }}" class="doc-link">{{ $s->name }}</a><div class="small text-muted">{{ $s->code }}</div></td>
                                 <td data-label="Country">{{ $s->country }}</td>
                                 <td data-label="Contact">{{ $s->contact_person }}<div class="small text-muted">{{ $s->phone }}</div></td>
-                                <td data-label="Currency">{{ $s->currency }}</td>
+                                
                                 <td data-label="Terms">{{ $s->payment_terms_days }} days</td>
                                 <td data-label="POs" class="text-end">{{ $s->purchase_orders_count }}</td>
                                 <td data-label="We owe" class="text-end money fw-semibold">{{ money($s->balance()) }}</td>

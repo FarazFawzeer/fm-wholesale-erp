@@ -531,3 +531,97 @@
           border: 0 !important;
      }
 }
+
+// ---------- Product search + "New product" button ----------
+.picker-bar {
+     display: flex;
+     gap: 8px;
+     align-items: flex-start;
+
+     .choices {
+          flex: 1 1 auto;
+          min-width: 0;
+     }
+
+     > .btn {
+          white-space: nowrap;
+          height: 38px;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+     }
+}
+
+// Item line: pairs / price / discount / total in one row (wraps on phones)
+.line-card {
+     .line-fields {
+          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          align-items: start;
+          margin-bottom: 0;
+     }
+
+     .line-total {
+          display: flex;
+          flex-direction: column;
+          text-align: right;
+          padding-top: 4px;
+
+          strong {
+               font-size: 1.05rem;
+          }
+     }
+}
+
+// Dropdown with "+ New" that turns into a text box
+.pick-or-add {
+     .js-new {
+          display: none;
+     }
+
+     &.adding {
+          .js-pick {
+               display: none;
+          }
+
+          .js-new {
+               display: flex;
+          }
+     }
+}
+
+// Select + "New" button side by side
+.select-add {
+     display: flex;
+     gap: 8px;
+
+     > select,
+     > .choices {
+          flex: 1 1 auto;
+          min-width: 0;
+     }
+
+     > .btn {
+          white-space: nowrap;
+     }
+}
+
+// Numbered steps (New Invoice: 1 Customer, 2 Products, 3 Payment)
+.step-card .card-header {
+     display: flex;
+     align-items: center;
+     gap: 10px;
+
+     .step-no {
+          flex: 0 0 28px;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: $primary;
+          color: #fff;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: 0.85rem;
+     }
+}

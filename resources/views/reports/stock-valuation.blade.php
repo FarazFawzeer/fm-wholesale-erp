@@ -13,7 +13,7 @@
     @endphp
     <div class="row g-3 mb-3">
         <div class="col-6 col-lg-3"><x-kpi label="Pairs" :value="qty($products->sum('on_hand'))" icon="solar:box-outline" /></div>
-        <div class="col-6 col-lg-3"><x-kpi label="Value at landed cost" :value="money($cost)" icon="solar:wallet-money-outline" color="info" /></div>
+        <div class="col-6 col-lg-3"><x-kpi label="Value at real cost" :value="money($cost)" icon="solar:wallet-money-outline" color="info" /></div>
         <div class="col-6 col-lg-3"><x-kpi label="Value at wholesale" :value="money($retail)" icon="solar:tag-price-outline" color="success" :sub="'Potential profit ' . money($retail - $cost)" /></div>
         <div class="col-6 col-lg-3"><x-kpi label="Damaged stock" :value="money($dmg)" icon="solar:danger-triangle-outline" color="danger" :sub="qty($products->sum('damaged')) . ' pairs'" /></div>
     </div>
@@ -24,7 +24,7 @@
             <div class="card-body table-wrap p-0">
                 <div class="table-responsive">
                     <table class="table erp-table stack mb-0">
-                        <thead><tr><th>Product</th><th class="text-end">Pairs</th><th class="text-end">Landed cost</th><th class="text-end">Stock value</th><th class="text-end">Wholesale value</th><th class="text-end">Damaged</th></tr></thead>
+                        <thead><tr><th>Product</th><th class="text-end">Pairs</th><th class="text-end">Real cost</th><th class="text-end">Stock value</th><th class="text-end">Wholesale value</th><th class="text-end">Damaged</th></tr></thead>
                         <tbody>
                             @foreach ($items as $p)
                                 <tr>

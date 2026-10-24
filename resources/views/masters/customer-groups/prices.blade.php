@@ -10,7 +10,7 @@
             <div class="card-body table-wrap p-0">
                 <div class="table-responsive">
                     <table class="table erp-table stack mb-0">
-                        <thead><tr><th>Product</th><th class="text-end">Landed cost</th><th class="text-end">Wholesale</th><th class="text-end">Group rule price</th><th class="text-end">Special price</th></tr></thead>
+                        <thead><tr><th>Product</th><th class="text-end">Real cost</th><th class="text-end">Wholesale</th><th class="text-end">Group rule price</th><th class="text-end">Special price</th></tr></thead>
                         <tbody>
                             @foreach ($products as $p)
                                 @php $special = $p->priceListItems->firstWhere('customer_group_id', $group->id); @endphp

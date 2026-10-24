@@ -8,7 +8,7 @@ use App\Services\SalesService;
 use App\Support\Catalog;
 use Illuminate\Http\Request;
 
-/** Quotations and sales orders (same screens, different type). */
+/** Quotations and pre-orders (same screens, different type). */
 class SalesOrderController extends Controller
 {
     public function index(Request $request, string $type)
@@ -68,7 +68,7 @@ class SalesOrderController extends Controller
         return back()->with('success', 'Status updated.');
     }
 
-    /** Quotation -> sales order, or order/quotation -> invoice (opens the invoice form pre-filled). */
+    /** Quotation -> pre-order, or pre-order/quotation -> invoice (opens the invoice form pre-filled). */
     public function convert(Request $request, SalesOrder $salesOrder)
     {
         if ($request->to === 'invoice') {
@@ -83,7 +83,7 @@ class SalesOrderController extends Controller
         $order->update(['converted_from_id' => $salesOrder->id]);
         $salesOrder->update(['status' => 'converted']);
 
-        return redirect()->route('sales-docs.show', $order)->with('success', "Quotation converted to sales order {$order->number}.");
+        return redirect()->route('sales-docs.show', $order)->with('success', "Quotation moved to pre-order {$order->number}.");
     }
 
     protected function formData(SalesOrder $doc): array

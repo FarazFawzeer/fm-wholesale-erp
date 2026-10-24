@@ -13,12 +13,12 @@ class PurchaseOrder extends Model
     protected $casts = ['order_date' => 'date', 'expected_date' => 'date', 'due_date' => 'date'];
 
     public const CHARGE_TYPES = [
-        'freight' => 'Freight',
+        'freight' => 'Shipping (freight)',
         'insurance' => 'Insurance',
-        'duty' => 'Customs duty',
-        'clearing' => 'Clearing & port charges',
-        'transport' => 'Local transport',
-        'other' => 'Other charges',
+        'duty' => 'Customs duty & tax',
+        'clearing' => 'Clearing & port',
+        'transport' => 'Transport to store',
+        'other' => 'Other costs',
     ];
 
     public function supplier(): BelongsTo

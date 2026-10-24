@@ -1,13 +1,13 @@
 @extends('layouts.vertical', ['subtitle' => $doc->number])
 
 @section('content')
-    <x-page-header :title="$doc->label() . ' ' . $doc->number" :crumbs="[$doc->label() . 's' => route($doc->type === 'quotation' ? 'quotations.index' : 'sales-orders.index'), $doc->number]">
+    <x-page-header :title="$doc->label() . ' ' . $doc->number" :crumbs="[$doc->label() . 's' => route($doc->type === 'quotation' ? 'quotations.index' : 'pre-orders.index'), $doc->number]">
         <button onclick="window.print()" class="btn btn-light"><iconify-icon icon="solar:printer-outline" class="align-middle me-1"></iconify-icon>Print</button>
         @if ($doc->status === 'open')
             <a href="{{ route('sales-docs.edit', $doc) }}" class="btn btn-light">Edit</a>
         @endif
         @if ($doc->type === 'quotation' && in_array($doc->status, ['open', 'accepted']))
-            <form method="POST" action="{{ route('sales-docs.convert', $doc) }}">@csrf<button class="btn btn-soft-primary">Convert to sales order</button></form>
+            <form method="POST" action="{{ route('sales-docs.convert', $doc) }}">@csrf<button class="btn btn-soft-primary">Move to pre-order</button></form>
         @endif
         @if (in_array($doc->status, ['open', 'accepted']))
             <form method="POST" action="{{ route('sales-docs.convert', $doc) }}">@csrf<input type="hidden" name="to" value="invoice"><button class="btn btn-primary">Create invoice</button></form>
@@ -24,13 +24,13 @@
                 <div class="card-body table-wrap p-0">
                     <div class="table-responsive">
                         <table class="table erp-table stack mb-0">
-                            <thead><tr><th>Product / sizes</th><th class="text-end">Pairs</th><th class="text-end">Price</th><th class="text-end">Disc</th><th class="text-end">Amount</th></tr></thead>
+                            <thead><tr><th>Product</th><th class="text-end">Pairs</th><th class="text-end">Price</th><th class="text-end">Disc</th><th class="text-end">Amount</th></tr></thead>
                             <tbody>
                                 @foreach ($byProduct as $rows)
                                     @php $f = $rows->first(); @endphp
                                     <tr>
                                         <td class="td-title"><strong>{{ $f->product->code }}</strong> <span class="small text-muted">{{ $f->product->name }} {{ $f->product->colour }}</span>
-                                            <div class="mt-1">@foreach ($rows->sortBy(fn ($r) => (float) $r->variant->size) as $r)<span class="badge bg-light text-dark fw-normal me-1">{{ $r->variant->size }} &times; {{ $r->qty }}</span>@endforeach</div></td>
+                                            <div class="small text-muted">Size {{ $f->product->sizeLabel() }}</div></td>
                                         <td data-label="Pairs" class="text-end">{{ $rows->sum('qty') }}</td>
                                         <td data-label="Price" class="text-end money">{{ money($f->unit_price) }}</td>
                                         <td data-label="Disc" class="text-end">{{ $f->discount_percent > 0 ? $f->discount_percent . '%' : '-' }}</td>

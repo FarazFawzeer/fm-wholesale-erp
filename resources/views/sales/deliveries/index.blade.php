@@ -1,9 +1,9 @@
 @extends('layouts.vertical', ['subtitle' => 'Delivery Notes'])
 
 @section('content')
-    <x-page-header title="Delivery Notes" :crumbs="['Sales', 'Delivery Notes']">
-        <a href="{{ route('invoices.index', ['delivery' => 'pending']) }}" class="btn btn-soft-primary">Pending deliveries</a>
-        <a href="{{ route('invoices.index', ['delivery' => 'partial']) }}" class="btn btn-soft-warning">Partly delivered</a>
+    <x-page-header title="Deliveries" :crumbs="['Sales', 'Delivery Notes']">
+        <a href="{{ route('invoices.index', ['delivery' => 'pending']) }}" class="btn btn-soft-primary">Not sent yet</a>
+        <a href="{{ route('invoices.index', ['delivery' => 'partial']) }}" class="btn btn-soft-warning">Part sent</a>
     </x-page-header>
 
     <div class="card">

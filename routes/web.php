@@ -33,6 +33,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('root');
 
     // ---- Masters ----
+    Route::get('products/next-code', [ProductController::class, 'nextCodeJson'])->name('products.next-code');
+    Route::post('products/quick', [ProductController::class, 'quickStore'])->name('products.quick');
+    Route::post('customers/quick', [CustomerController::class, 'quickStore'])->name('customers.quick');
+    Route::post('suppliers/quick', [SupplierController::class, 'quickStore'])->name('suppliers.quick');
     Route::get('products/import', [ProductController::class, 'importForm'])->name('products.import');
     Route::post('products/import', [ProductController::class, 'import'])->name('products.import.store');
     Route::get('products/template', [ProductController::class, 'template'])->name('products.template');
@@ -71,8 +75,8 @@ Route::middleware('auth')->group(function () {
     // ---- Sales ----
     Route::get('quotations', [SalesOrderController::class, 'index'])->defaults('type', 'quotation')->name('quotations.index');
     Route::get('quotations/create', [SalesOrderController::class, 'create'])->defaults('type', 'quotation')->name('quotations.create');
-    Route::get('sales-orders', [SalesOrderController::class, 'index'])->defaults('type', 'order')->name('sales-orders.index');
-    Route::get('sales-orders/create', [SalesOrderController::class, 'create'])->defaults('type', 'order')->name('sales-orders.create');
+    Route::get('pre-orders', [SalesOrderController::class, 'index'])->defaults('type', 'order')->name('pre-orders.index');
+    Route::get('pre-orders/create', [SalesOrderController::class, 'create'])->defaults('type', 'order')->name('pre-orders.create');
     Route::post('sales-docs', [SalesOrderController::class, 'store'])->name('sales-docs.store');
     Route::get('sales-docs/{salesOrder}', [SalesOrderController::class, 'show'])->name('sales-docs.show');
     Route::get('sales-docs/{salesOrder}/edit', [SalesOrderController::class, 'edit'])->name('sales-docs.edit');

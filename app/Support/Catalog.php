@@ -24,7 +24,9 @@ class Catalog
         return $products->map(fn (Product $p) => [
             'id' => $p->id,
             'code' => $p->code,
-            'name' => trim($p->name . ($p->colour ? ' - ' . $p->colour : '')),
+            'name' => $p->name,
+            'colour' => $p->colour,
+            'size' => $p->sizeLabel(),
             'brand' => $p->brand?->name,
             'ppc' => $p->pairs_per_carton,
             'price' => (float) $p->selling_price,

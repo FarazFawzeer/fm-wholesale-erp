@@ -35,8 +35,6 @@ class PurchaseOrderController extends Controller
             'supplier_id' => $request->supplier_id,
             'order_date' => now(),
             'expected_date' => now()->addDays(30),
-            'exchange_rate' => 300,
-            'currency' => 'USD',
         ])));
     }
 
@@ -54,7 +52,7 @@ class PurchaseOrderController extends Controller
             return $po;
         });
 
-        return redirect()->route('purchase-orders.show', $po)->with('success', "Purchase order {$po->number} saved. Next: add import costs.");
+        return redirect()->route('purchase-orders.show', $po)->with('success', "Purchase order {$po->number} saved. Next: add shipping & duty costs.");
     }
 
     public function show(PurchaseOrder $purchaseOrder)
@@ -110,7 +108,6 @@ class PurchaseOrderController extends Controller
     {
         abort_unless($purchaseOrder->isEditable(), 403, 'Costing is locked after goods are received.');
         $data = $request->validate([
-            'exchange_rate' => 'required|numeric|min:0.0001',
             'allocation_method' => 'required|in:value,qty',
             'charges' => 'array',
             'charges.*.type' => 'required|string',
@@ -119,14 +116,14 @@ class PurchaseOrderController extends Controller
         ]);
         DB::transaction(function () use ($purchaseOrder, $data) {
             $purchaseOrder->update([
-                'exchange_rate' => $data['exchange_rate'],
+                'exchange_rate' => 1,
                 'allocation_method' => $data['allocation_method'],
                 'status' => in_array($purchaseOrder->status, ['ordered', 'draft']) ? 'costed' : $purchaseOrder->status,
             ]);
             PurchaseService::syncCharges($purchaseOrder, $data['charges'] ?? []);
         });
 
-        return redirect()->route('purchase-orders.costing', $purchaseOrder)->with('success', 'Import costing saved. Landed cost per pair recalculated.');
+        return redirect()->route('purchase-orders.costing', $purchaseOrder)->with('success', 'Costs saved. Real cost per pair updated.');
     }
 
     protected function formData(PurchaseOrder $po): array
@@ -153,10 +150,8 @@ class PurchaseOrderController extends Controller
             'supplier_id' => 'required|exists:suppliers,id',
             'order_date' => 'required|date',
             'expected_date' => 'nullable|date',
-            'currency' => 'required|size:3',
-            'exchange_rate' => 'required|numeric|min:0.0001',
             'shipment_ref' => 'nullable|max:100',
             'notes' => 'nullable|string',
-        ]);
+        ]) + ['currency' => 'LKR', 'exchange_rate' => 1];
     }
 }

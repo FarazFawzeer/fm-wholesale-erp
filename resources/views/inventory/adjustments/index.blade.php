@@ -1,8 +1,8 @@
 @extends('layouts.vertical', ['subtitle' => 'Stock Adjustments'])
 
 @section('content')
-    <x-page-header title="Adjustments, Damages & Returns to Supplier" :crumbs="['Inventory', 'Adjustments']">
-        <a href="{{ route('stock-adjustments.create') }}" class="btn btn-primary"><iconify-icon icon="solar:add-circle-outline" class="align-middle me-1"></iconify-icon>New Adjustment</a>
+    <x-page-header title="Damaged & Stock Corrections" :crumbs="['Stock', 'Damaged & corrections']">
+        <a href="{{ route('stock-adjustments.create') }}" class="btn btn-primary"><iconify-icon icon="solar:add-circle-outline" class="align-middle me-1"></iconify-icon>Record damaged / correct stock</a>
     </x-page-header>
     <ul class="nav nav-pills nav-tabs-scroll mb-3 gap-1">
         <li class="nav-item"><a class="nav-link {{ ! request('reason') ? 'active' : '' }}" href="{{ route('stock-adjustments.index') }}">All</a></li>

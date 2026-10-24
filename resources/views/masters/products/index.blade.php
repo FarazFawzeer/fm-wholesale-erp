@@ -32,9 +32,9 @@
                         <tr>
                             <th>Product</th>
                             <th>Category</th>
-                            <th>Sizes</th>
+                            <th>Size</th>
                             <th class="text-end">Stock (pairs)</th>
-                            <th class="text-end">Landed cost</th>
+                            <th class="text-end">Real cost</th>
                             <th class="text-end">Wholesale price</th>
                             <th class="text-end">Margin</th>
                         </tr>
@@ -48,12 +48,12 @@
                                     <div class="small text-muted">{{ $p->brand?->name }} {{ $p->name }} &middot; {{ $p->colour }}</div>
                                 </td>
                                 <td data-label="Category">{{ $p->category?->name }}</td>
-                                <td data-label="Sizes">{{ str_replace(',', ', ', $p->sizes) }}</td>
+                                <td data-label="Size">{{ $p->sizeLabel() }}</td>
                                 <td data-label="Stock" class="text-end">
                                     <span class="fw-semibold {{ $low ? 'text-danger' : '' }}">{{ qty($p->on_hand) }}</span>
-                                    <div class="small text-muted">{{ number_format($p->on_hand / max(1, $p->pairs_per_carton), 1) }} ctn</div>
+                                    
                                 </td>
-                                <td data-label="Landed cost" class="text-end money">{{ money($p->cost_price) }}</td>
+                                <td data-label="Real cost" class="text-end money">{{ money($p->cost_price) }}</td>
                                 <td data-label="Wholesale" class="text-end money fw-semibold">{{ money($p->selling_price) }}</td>
                                 <td data-label="Margin" class="text-end">
                                     @php $m = $p->marginPercent(); @endphp

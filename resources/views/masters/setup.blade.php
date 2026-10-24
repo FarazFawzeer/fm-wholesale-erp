@@ -22,7 +22,7 @@
     @php [$label, $rows, $fields] = $tabs[$tab]; @endphp
     <div class="card">
         @if ($tab === 'categories')
-            <div class="card-header small text-muted">Category markup is used for suggested selling prices (landed cost + markup). Empty = company default {{ setting('default_markup_percent') }}%.</div>
+            <div class="card-header small text-muted">Category markup is used for suggested selling prices (real cost + markup). Empty = company default {{ setting('default_markup_percent') }}%.</div>
         @endif
         <div class="card-body table-wrap p-0">
             <div class="table-responsive">

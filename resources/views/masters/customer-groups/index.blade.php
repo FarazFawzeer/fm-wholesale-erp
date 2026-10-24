@@ -1,7 +1,7 @@
 @extends('layouts.vertical', ['subtitle' => 'Customer Groups'])
 
 @section('content')
-    <x-page-header title="Customer Groups & Price Lists" :crumbs="['Pricing', 'Customer Groups']" />
+    <x-page-header title="Customer Price Groups" :crumbs="['Pricing', 'Customer Groups']" />
 
     <div class="alert alert-info small">
         Each customer belongs to a group. Their price is the group's <strong>special price list</strong> for that product if one is set,

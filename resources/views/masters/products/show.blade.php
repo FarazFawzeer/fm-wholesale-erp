@@ -6,8 +6,8 @@
     </x-page-header>
 
     <div class="row g-3 mb-3">
-        <div class="col-6 col-xl-3"><x-kpi label="Stock on hand" :value="qty($product->totalStock()) . ' pairs'" icon="solar:box-outline" :sub="number_format($product->totalStock() / max(1, $product->pairs_per_carton), 1) . ' cartons'" /></div>
-        <div class="col-6 col-xl-3"><x-kpi label="Landed cost" :value="money($product->cost_price)" icon="solar:globus-outline" color="info" sub="Weighted average per pair" /></div>
+        <div class="col-6 col-xl-3"><x-kpi label="Stock on hand" :value="qty($product->totalStock()) . ' pairs'" icon="solar:box-outline" :sub="'Size ' . $product->sizeLabel()" /></div>
+        <div class="col-6 col-xl-3"><x-kpi label="Real cost" :value="money($product->cost_price)" icon="solar:globus-outline" color="info" sub="Weighted average per pair" /></div>
         <div class="col-6 col-xl-3"><x-kpi label="Wholesale price" :value="money($product->selling_price)" icon="solar:tag-price-outline" color="success" :sub="'Margin ' . number_format($product->marginPercent(), 1) . '%'" /></div>
         <div class="col-6 col-xl-3"><x-kpi label="Minimum price" :value="money($product->minimumPrice())" icon="solar:shield-warning-outline" color="warning" :sub="'Suggested ' . money($product->suggestedPrice())" /></div>
     </div>
@@ -15,45 +15,25 @@
     <div class="row">
         <div class="col-xl-8">
             <div class="card">
-                <div class="card-header"><h5 class="card-title mb-0">Stock by size</h5></div>
+                <div class="card-header"><h5 class="card-title mb-0">Stock by store (pairs)</h5></div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table erp-table text-center mb-0">
-                            <thead>
-                                <tr>
-                                    <th class="text-start">Store</th>
-                                    @foreach ($product->variants as $v)
-                                        <th>{{ $v->size }}</th>
-                                    @endforeach
-                                    <th>Total</th>
-                                </tr>
-                            </thead>
+                        <table class="table erp-table mb-0">
+                            <thead><tr><th>Store</th><th class="text-end">Good pairs</th><th class="text-end">Damaged</th></tr></thead>
                             <tbody>
                                 @foreach ($warehouses as $w)
-                                    @php $row = $product->variants->map(fn ($v) => (int) $v->stocks->firstWhere('warehouse_id', $w->id)?->qty); @endphp
+                                    @php $st = $product->variants->flatMap->stocks->where("warehouse_id", $w->id); @endphp
                                     <tr>
-                                        <td class="text-start fw-semibold">{{ $w->name }}</td>
-                                        @foreach ($row as $q)
-                                            <td class="{{ $q <= 0 ? 'text-danger' : '' }}">{{ $q }}</td>
-                                        @endforeach
-                                        <td class="fw-bold">{{ $row->sum() }}</td>
+                                        <td class="fw-semibold">{{ $w->name }}</td>
+                                        <td class="text-end fw-bold {{ $st->sum("qty") <= 0 ? "text-danger" : "" }}">{{ qty($st->sum("qty")) }}</td>
+                                        <td class="text-end {{ $st->sum("damaged_qty") ? "text-danger" : "text-muted" }}">{{ $st->sum("damaged_qty") ?: "-" }}</td>
                                     </tr>
                                 @endforeach
-                                @php $dmg = $product->variants->map(fn ($v) => (int) $v->stocks->sum('damaged_qty')); @endphp
-                                @if ($dmg->sum())
-                                    <tr class="table-light">
-                                        <td class="text-start text-danger">Damaged (not sellable)</td>
-                                        @foreach ($dmg as $q)
-                                            <td class="text-danger">{{ $q ?: '' }}</td>
-                                        @endforeach
-                                        <td class="fw-bold text-danger">{{ $dmg->sum() }}</td>
-                                    </tr>
-                                @endif
                             </tbody>
                         </table>
                     </div>
                 </div>
-                <div class="card-footer small text-muted">SKUs: {{ $product->variants->pluck('sku')->implode(', ') }}</div>
+                
             </div>
 
             <div class="card">
@@ -67,7 +47,7 @@
                                     <tr>
                                         <td data-label="Date">{{ $m->date->format('d M Y') }}</td>
                                         <td data-label="Type">{{ ucwords(str_replace('_', ' ', $m->type)) }}</td>
-                                        <td data-label="Size">{{ $m->variant->size }}</td>
+                                        <td data-label="Size">{{ $product->sizeLabel() }}</td>
                                         <td data-label="Store">{{ $m->warehouse->code }}</td>
                                         <td data-label="Qty" class="text-end fw-semibold {{ $m->qty < 0 ? 'text-danger' : 'text-success' }}">{{ $m->qty > 0 ? '+' : '' }}{{ $m->qty }}</td>
                                         <td data-label="Ref">{{ $m->reference_no }}</td>
@@ -88,8 +68,8 @@
                     <div><div class="label">Brand</div><div class="value">{{ $product->brand?->name ?? '-' }}</div></div>
                     <div><div class="label">Category</div><div class="value">{{ $product->category?->name ?? '-' }}</div></div>
                     <div><div class="label">Colour</div><div class="value">{{ $product->colour ?? '-' }}</div></div>
-                    <div><div class="label">Gender</div><div class="value">{{ $product->gender ?? '-' }}</div></div>
-                    <div><div class="label">Pairs / carton</div><div class="value">{{ $product->pairs_per_carton }}</div></div>
+                    
+                    <div><div class="label">Size</div><div class="value">{{ $product->sizeLabel() }}</div></div>
                     <div><div class="label">Re-order level</div><div class="value">{{ $product->reorder_level }} pairs</div></div>
                     <div><div class="label">Status</div><div class="value">{!! status_badge($product->is_active ? 'active' : 'inactive') !!}</div></div>
                 </div>
@@ -118,7 +98,7 @@
                                 <a href="{{ route('purchase-orders.show', $row->purchase_order_id) }}" class="fw-semibold">{{ $row->purchaseOrder->number }}</a>
                                 <span class="small text-muted">{{ $row->purchaseOrder->order_date->format('d M Y') }}</span>
                             </div>
-                            <div class="small text-muted">{{ $row->received }} / {{ $row->qty }} pairs &middot; {{ $row->purchaseOrder->currency }} {{ number_format($row->fx, 2) }} &rarr; landed {{ money($row->landed) }}</div>
+                            <div class="small text-muted">{{ $row->received }} / {{ $row->qty }} pairs &middot; bought at {{ money($row->fx) }} &rarr; real cost {{ money($row->landed) }}</div>
                         </li>
                     @empty
                         <li class="list-group-item text-muted small">Not imported yet.</li>

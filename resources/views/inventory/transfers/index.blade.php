@@ -1,8 +1,8 @@
 @extends('layouts.vertical', ['subtitle' => 'Stock Transfers'])
 
 @section('content')
-    <x-page-header title="Stock Transfers" :crumbs="['Inventory', 'Transfers']">
-        <a href="{{ route('stock-transfers.create') }}" class="btn btn-primary"><iconify-icon icon="solar:add-circle-outline" class="align-middle me-1"></iconify-icon>New Transfer</a>
+    <x-page-header title="Move Stock Between Stores" :crumbs="['Stock', 'Move stock']">
+        <a href="{{ route('stock-transfers.create') }}" class="btn btn-primary"><iconify-icon icon="solar:add-circle-outline" class="align-middle me-1"></iconify-icon>Move stock</a>
     </x-page-header>
     <div class="card">
         <div class="card-body table-wrap p-0">

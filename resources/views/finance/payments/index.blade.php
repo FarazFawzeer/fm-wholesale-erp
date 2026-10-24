@@ -1,4 +1,4 @@
-@php $in = $direction === 'in'; $label = $in ? 'Customer Receipts' : 'Supplier Payments'; @endphp
+@php $in = $direction === 'in'; $label = $in ? 'Money Received' : 'Supplier Payments'; @endphp
 @extends('layouts.vertical', ['subtitle' => $label])
 
 @section('content')

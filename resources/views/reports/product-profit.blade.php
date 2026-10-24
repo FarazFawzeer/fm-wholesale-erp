@@ -11,7 +11,7 @@
     <div class="row g-3 mb-3">
         <div class="col-6 col-lg-3"><x-kpi label="Pairs sold" :value="qty($rows->sum('pairs'))" icon="solar:box-outline" /></div>
         <div class="col-6 col-lg-3"><x-kpi label="Net sales" :value="money($s)" icon="solar:cart-large-2-outline" color="primary" /></div>
-        <div class="col-6 col-lg-3"><x-kpi label="Landed cost of sales" :value="money($c)" icon="solar:globus-outline" color="secondary" /></div>
+        <div class="col-6 col-lg-3"><x-kpi label="Cost of goods sold" :value="money($c)" icon="solar:globus-outline" color="secondary" /></div>
         <div class="col-6 col-lg-3"><x-kpi label="Gross profit" :value="money($s - $c)" icon="solar:graph-up-outline" color="success" :sub="($s > 0 ? number_format(($s - $c) / $s * 100, 1) : 0) . '% margin'" /></div>
     </div>
 

@@ -1,7 +1,7 @@
 @extends('layouts.vertical', ['subtitle' => 'Stock Movements'])
 
 @section('content')
-    <x-page-header title="Stock Movements" :crumbs="['Inventory', 'Movements']" />
+    <x-page-header title="Stock History" :crumbs="['Inventory', 'Movements']" />
 
     <div class="card">
         <div class="card-body border-bottom">

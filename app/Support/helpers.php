@@ -39,7 +39,9 @@ if (! function_exists('status_badge')) {
             'cash' => 'success', 'credit' => 'primary', 'active' => 'success', 'inactive' => 'secondary', 'received_cheque' => 'success', 'issued' => 'danger', 'in' => 'success', 'out' => 'danger',
         ];
         $color = $map[$status] ?? 'secondary';
-        $label = ucwords(str_replace('_', ' ', (string) $status));
+        $labels = ['costed' => 'On the way', 'partial' => 'Part done', 'posted' => 'Done', 'open' => 'Open', 'converted' => 'Moved to pre-order',
+            'invoiced' => 'Invoiced', 'deposited' => 'In bank', 'bounced' => 'Returned', 'credit' => 'Credit', 'cash' => 'Cash'];
+        $label = $labels[$status] ?? ucwords(str_replace('_', ' ', (string) $status));
 
         return '<span class="badge bg-' . $color . '-subtle text-' . $color . ' fw-semibold">' . e($label) . '</span>';
     }

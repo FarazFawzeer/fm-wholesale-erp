@@ -35,7 +35,7 @@ class StockController extends Controller
                 return $p;
             })
             ->when($request->level === 'low', fn ($c) => $c->filter(fn ($p) => $p->on_hand <= $p->reorder_level))
-            ->when($request->level === 'out', fn ($c) => $c->filter(fn ($p) => $p->size_stock->contains('qty', 0)));
+            ->when($request->level === 'out', fn ($c) => $c->filter(fn ($p) => $p->on_hand <= 0));
 
         return view('inventory.stock.index', [
             'products' => $products,

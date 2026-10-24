@@ -1,7 +1,7 @@
 @extends('layouts.vertical', ['subtitle' => 'New Stock Transfer'])
 
 @section('content')
-    <x-page-header title="New Stock Transfer" :crumbs="['Transfers' => route('stock-transfers.index'), 'New']" />
+    <x-page-header title="Move Stock" :crumbs="['Transfers' => route('stock-transfers.index'), 'New']" />
 
     <form method="POST" action="{{ route('stock-transfers.store') }}">
         @csrf
@@ -11,7 +11,7 @@
                     <div class="card-body" data-line-editor data-mode="stock" data-check-stock="1" data-products='@json($catalog)' data-initial='@json($initial)'>
                         <select class="product-picker"></select>
                         <div class="lines mt-3"></div>
-                        <div class="empty-lines text-center text-muted py-4">Add products and enter pairs per size to move.</div>
+                        <div class="empty-lines text-center text-muted py-4">Add the products and enter how many pairs to move.</div>
                     </div>
                 </div>
             </div>
@@ -31,7 +31,7 @@
         </div>
         <div class="sticky-actions d-flex gap-2 justify-content-end mb-4">
             <a href="{{ route('stock-transfers.index') }}" class="btn btn-light">Cancel</a>
-            <button class="btn btn-primary">Transfer stock</button>
+            <button class="btn btn-primary">Move stock</button>
         </div>
     </form>
 @endsection

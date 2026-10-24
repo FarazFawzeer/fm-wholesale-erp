@@ -28,6 +28,8 @@
 
     </div>
 
+    @include('layouts.partials.quick-add')
+
     @include('layouts.partials/vendor-scripts')
 
 

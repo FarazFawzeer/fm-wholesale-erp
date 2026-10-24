@@ -1,4 +1,5 @@
 {{-- Customer picker carrying group + credit data for the line editor and credit panel --}}
+<div class="select-add">
 <select name="customer_id" id="customer_id" class="form-select" required>
     <option value="">Select customer</option>
     @foreach ($customers as $c)
@@ -8,6 +9,8 @@
             data-terms="{{ $c->payment_terms_days }}">{{ $c->name }}{{ $c->city ? ' - ' . $c->city : '' }}</option>
     @endforeach
 </select>
+<button type="button" class="btn btn-soft-primary" data-quick-add="customer" data-target="#customer_id">+ New</button>
+</div>
 <div id="credit-panel" class="small mt-2 d-none">
     <div class="d-flex flex-wrap gap-2">
         <span class="badge bg-light text-dark" data-k="group"></span>

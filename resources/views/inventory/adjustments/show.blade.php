@@ -8,7 +8,7 @@
             @foreach ($byProduct as $items)
                 @php $p = $items->first()->variant->product; @endphp
                 <div class="mb-2"><strong>{{ $p->code }}</strong> {{ $p->name }} {{ $p->colour }}:
-                    @foreach ($items->sortBy(fn ($i) => (float) $i->variant->size) as $i)<span class="badge bg-light text-dark fw-normal">{{ $i->variant->size }}: {{ $i->qty > 0 ? '+' : '' }}{{ $i->qty }}</span> @endforeach</div>
+                    <span class="small text-muted">Size {{ $p->sizeLabel() }}</span> <span class="fw-semibold {{ $items->sum('qty') < 0 ? 'text-danger' : 'text-success' }}">{{ $items->sum('qty') > 0 ? '+' : '' }}{{ $items->sum('qty') }} pairs</span></div>
             @endforeach
             @if ($a->notes)<div class="small text-muted mt-2">{{ $a->notes }}</div>@endif
         </div>

@@ -23,7 +23,7 @@ class SupplierController extends Controller
     {
         return view('masters.suppliers.form', ['supplier' => new Supplier([
             'code' => 'SUP-' . str_pad(Supplier::max('id') + 1, 3, '0', STR_PAD_LEFT),
-            'currency' => 'USD', 'payment_terms_days' => 30, 'is_active' => true,
+            'payment_terms_days' => 30, 'is_active' => true,
         ])]);
     }
 
@@ -32,6 +32,24 @@ class SupplierController extends Controller
         $supplier = Supplier::create($this->validated($request));
 
         return redirect()->route('suppliers.show', $supplier)->with('success', 'Supplier saved.');
+    }
+
+    /** Quick add from a pop-up (purchase order, supplier payment). */
+    public function quickStore(Request $request)
+    {
+        $data = $request->validate([
+            'name' => 'required|max:255',
+            'country' => 'nullable|max:100',
+            'phone' => 'nullable|max:50',
+        ]);
+        $supplier = Supplier::create($data + [
+            'code' => 'SUP-' . str_pad(Supplier::max('id') + 1, 3, '0', STR_PAD_LEFT),
+            'currency' => 'LKR',
+            'payment_terms_days' => 30,
+            'is_active' => true,
+        ]);
+
+        return response()->json(['id' => $supplier->id, 'label' => $supplier->name, 'data' => []]);
     }
 
     public function show(Supplier $supplier)
@@ -62,7 +80,6 @@ class SupplierController extends Controller
             'code' => ['required', 'max:20', Rule::unique('suppliers')->ignore($supplier)],
             'name' => 'required|max:255',
             'country' => 'nullable|max:100',
-            'currency' => 'required|size:3',
             'contact_person' => 'nullable|max:255',
             'phone' => 'nullable|max:50',
             'email' => 'nullable|email',
@@ -70,7 +87,7 @@ class SupplierController extends Controller
             'payment_terms_days' => 'required|integer|min:0',
             'opening_balance' => 'nullable|numeric',
         ]);
-        $data['currency'] = strtoupper($data['currency']);
+        $data['currency'] = 'LKR';
         $data['opening_balance'] = $data['opening_balance'] ?? 0;
         $data['is_active'] = $request->boolean('is_active', true);
 

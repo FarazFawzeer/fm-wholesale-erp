@@ -10,7 +10,7 @@
             @foreach ($byProduct as $items)
                 @php $p = $items->first()->variant->product; @endphp
                 <div class="mb-2"><strong>{{ $p->code }}</strong> {{ $p->name }} {{ $p->colour }}:
-                    @foreach ($items->sortBy(fn ($i) => (float) $i->variant->size) as $i)<span class="badge bg-light text-dark fw-normal">{{ $i->variant->size }} &times; {{ $i->qty }}</span> @endforeach
+                    <span class="small text-muted">Size {{ $p->sizeLabel() }}</span>
                     <span class="fw-semibold ms-1">= {{ $items->sum('qty') }} pairs</span></div>
             @endforeach
             @if ($t->notes)<div class="small text-muted mt-2">{{ $t->notes }}</div>@endif

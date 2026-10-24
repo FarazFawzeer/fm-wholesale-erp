@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
-/** Quotations and sales orders share one table (type = quotation | order). */
+/** Quotations and pre-orders share one table (type = quotation | order). */
 class SalesOrder extends Model
 {
     protected $guarded = [];
@@ -41,6 +41,6 @@ class SalesOrder extends Model
 
     public function label(): string
     {
-        return $this->type === 'quotation' ? 'Quotation' : 'Sales Order';
+        return $this->type === 'quotation' ? 'Quotation' : 'Pre-Order';
     }
 }

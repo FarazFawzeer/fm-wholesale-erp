@@ -6,13 +6,13 @@
     @php
         $groups = [
             'Stock' => [
-                ['Stock valuation', 'reports.stock-valuation', 'solar:box-outline', 'Pairs and value at landed cost, by category and store'],
-                ['Low stock & missing sizes', 'reports.low-stock', 'solar:box-minimalistic-outline', 'Below re-order level or sizes sold out'],
+                ['Stock valuation', 'reports.stock-valuation', 'solar:box-outline', 'Pairs and value at real cost, by category and store'],
+                ['Low stock', 'reports.low-stock', 'solar:box-minimalistic-outline', 'Products running out - time to re-order'],
                 ['Import costing', 'reports.import-costing', 'solar:globus-outline', 'Freight, duty and charges per shipment'],
                 ['Stock movements', 'stock.movements', 'solar:transfer-horizontal-outline', 'Every stock in / out with reference'],
             ],
             'Sales & profit' => [
-                ['Product profit', 'reports.product-profit', 'solar:graph-up-outline', 'Sales, landed cost and margin per product'],
+                ['Product profit', 'reports.product-profit', 'solar:graph-up-outline', 'Sales, real cost and margin per product'],
                 ['Invoice profit', 'reports.invoice-profit', 'solar:bill-list-outline', 'Gross profit per invoice and net after expenses'],
             ],
             'Customers & money' => [

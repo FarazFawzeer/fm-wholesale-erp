@@ -1,7 +1,7 @@
 @extends('layouts.vertical', ['subtitle' => 'Credit Control'])
 
 @section('content')
-    <x-page-header title="Credit Control & Reminders" :crumbs="['Credit Control', 'Overdue']">
+    <x-page-header title="Late Payments & Reminders" :crumbs="['Credit Control', 'Overdue']">
         <a href="{{ route('reports.outstanding') }}" class="btn btn-light">Ageing report</a>
     </x-page-header>
 

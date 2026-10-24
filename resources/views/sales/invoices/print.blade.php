@@ -26,7 +26,7 @@
                 <tr>
                     <td>{{ $n + 1 }}</td>
                     <td><span class="b">{{ $f->product->code }}</span> {{ $f->product->brand?->name }} {{ $f->product->name }} {{ $f->product->colour }}
-                        <div class="sizes">Sizes: @foreach ($rows->sortBy(fn ($r) => (float) $r->variant->size) as $r){{ $r->variant->size }}×{{ $r->qty }}{{ ! $loop->last ? ', ' : '' }}@endforeach</div></td>
+                        <div class="sizes">Size {{ $f->product->sizeLabel() }}</div></td>
                     <td class="r">{{ $rows->sum('qty') }}</td>
                     <td class="r">{{ money($f->unit_price, false) }}</td>
                     <td class="r">{{ $f->discount_percent > 0 ? $f->discount_percent . '%' : '' }}</td>
@@ -47,7 +47,7 @@
     </table>
 
     @if ($invoice->notes)<p class="muted">Note: {{ $invoice->notes }}</p>@endif
-    <p class="muted">Goods once sold will be exchanged only with the original invoice within 7 days. Cheques to be written in favour of {{ setting('company_name') }}.</p>
+    <p class="muted">Thank you for your business. Please check the goods when you receive them. Returns within 7 days with this invoice. Cheques payable to {{ setting('company_name') }}.</p>
 
     <div class="foot">
         <div class="sign">Prepared by</div>

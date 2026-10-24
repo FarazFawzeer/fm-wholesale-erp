@@ -1,9 +1,9 @@
-@php $label = $type === 'quotation' ? 'Quotations' : 'Sales Orders'; $route = $type === 'quotation' ? 'quotations' : 'sales-orders'; @endphp
+@php $label = $type === 'quotation' ? 'Quotations' : 'Pre-Orders'; $route = $type === 'quotation' ? 'quotations' : 'pre-orders'; @endphp
 @extends('layouts.vertical', ['subtitle' => $label])
 
 @section('content')
     <x-page-header :title="$label" :crumbs="['Sales', $label]">
-        <a href="{{ route($route . '.create') }}" class="btn btn-primary"><iconify-icon icon="solar:add-circle-outline" class="align-middle me-1"></iconify-icon>New {{ $type === 'quotation' ? 'Quotation' : 'Sales Order' }}</a>
+        <a href="{{ route($route . '.create') }}" class="btn btn-primary"><iconify-icon icon="solar:add-circle-outline" class="align-middle me-1"></iconify-icon>New {{ $type === 'quotation' ? 'Quotation' : 'Pre-Order' }}</a>
     </x-page-header>
 
     <ul class="nav nav-pills nav-tabs-scroll mb-3 gap-1">

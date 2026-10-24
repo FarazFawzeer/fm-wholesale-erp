@@ -11,7 +11,7 @@
         <div class="col-6 col-lg-3"><x-kpi label="We owe" :value="money($supplier->balance())" icon="solar:wallet-money-outline" color="danger" /></div>
         <div class="col-6 col-lg-3"><x-kpi label="Pending cheques" :value="money($cheques->whereIn('status', ['pending'])->sum('amount'))" icon="solar:card-send-outline" color="warning" /></div>
         <div class="col-6 col-lg-3"><x-kpi label="Purchase orders" :value="$orders->count()" icon="solar:globus-outline" color="info" /></div>
-        <div class="col-6 col-lg-3"><x-kpi label="Terms" :value="$supplier->payment_terms_days . ' days'" icon="solar:calendar-outline" color="secondary" :sub="$supplier->currency . ' &middot; ' . $supplier->country" /></div>
+        <div class="col-6 col-lg-3"><x-kpi label="Terms" :value="$supplier->payment_terms_days . ' days'" icon="solar:calendar-outline" color="secondary" :sub="$supplier->country" /></div>
     </div>
 
     <div class="row">
@@ -21,7 +21,7 @@
                 <div class="card-body table-wrap p-0">
                     <div class="table-responsive">
                         <table class="table erp-table stack mb-0">
-                            <thead><tr><th>PO</th><th>Date</th><th>Status</th><th class="text-end">Landed total</th><th class="text-end">Payable</th><th class="text-end">Balance</th></tr></thead>
+                            <thead><tr><th>PO</th><th>Date</th><th>Status</th><th class="text-end">Total real cost</th><th class="text-end">Payable</th><th class="text-end">Balance</th></tr></thead>
                             <tbody>
                                 @forelse ($orders as $po)
                                     <tr>

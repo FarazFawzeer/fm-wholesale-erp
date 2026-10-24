@@ -85,7 +85,7 @@ class SalesService
 
         return DB::transaction(function () use ($doc, $data, $rows, $gross, $discount, $total) {
             $doc ??= new SalesOrder([
-                'number' => NumberService::next($data['type'] === 'quotation' ? 'QT' : 'SO'),
+                'number' => NumberService::next($data['type'] === 'quotation' ? 'QT' : 'PRE'),
                 'user_id' => auth()->id(),
                 'status' => 'open',
             ]);

@@ -66,7 +66,7 @@ class DemoSeeder extends Seeder
 
         $men = '39,40,41,42,43,44';
         $ladies = '36,37,38,39,40,41';
-        $kids = '28,29,30,31,32,33';
+        $kids = '28,29,30,31,32,33,34,35';
         $sport = '39,40,41,42,43,44,45';
 
         $catalogue = [
@@ -88,23 +88,23 @@ class DemoSeeder extends Seeder
             ['CP-6002', 'ComfortPlus', 'Slippers', 'Cushion Slipper', 'Maroon', 'Ladies', $ladies, 24],
         ];
 
+        // Product = name + size range + colour; stock counted in pairs
         foreach ($catalogue as [$code, $brand, $cat, $name, $colour, $gender, $sizes, $ppc]) {
+            $run = explode(',', $sizes);
             $p = Product::create([
                 'code' => $code, 'name' => $name, 'brand_id' => $brands[$brand]->id, 'category_id' => $cats[$cat]->id,
-                'colour' => $colour, 'gender' => $gender, 'sizes' => $sizes, 'pairs_per_carton' => $ppc,
+                'colour' => $colour, 'size_from' => reset($run), 'size_to' => end($run), 'pairs_per_carton' => $ppc,
                 'reorder_level' => 36,
             ]);
-            foreach (explode(',', $sizes) as $size) {
-                $p->variants()->create(['size' => $size, 'sku' => $code . '-' . $size]);
-            }
+            $p->stockItem();
             $this->products[$code] = $p->load('variants');
         }
 
         $suppliers = [
-            'GZ' => Supplier::create(['code' => 'SUP-001', 'name' => 'Guangzhou Hengtai Footwear Co.', 'country' => 'China', 'currency' => 'USD', 'contact_person' => 'Lily Chen', 'phone' => '+86 20 8888 1234', 'email' => 'sales@hengtai.example', 'payment_terms_days' => 45]),
-            'JJ' => Supplier::create(['code' => 'SUP-002', 'name' => 'Jinjiang Sports Shoes Ltd', 'country' => 'China', 'currency' => 'USD', 'contact_person' => 'Wang Jun', 'phone' => '+86 595 8522 7788', 'payment_terms_days' => 30]),
-            'BK' => Supplier::create(['code' => 'SUP-003', 'name' => 'Bangkok Fashion Footwear', 'country' => 'Thailand', 'currency' => 'USD', 'contact_person' => 'Somchai K.', 'phone' => '+66 2 555 0199', 'payment_terms_days' => 30]),
-            'IN' => Supplier::create(['code' => 'SUP-004', 'name' => 'Agra Comfort Footwear Pvt Ltd', 'country' => 'India', 'currency' => 'USD', 'contact_person' => 'Rahul Mehta', 'phone' => '+91 562 222 3344', 'payment_terms_days' => 30]),
+            'GZ' => Supplier::create(['code' => 'SUP-001', 'name' => 'Guangzhou Hengtai Footwear Co.', 'country' => 'China', 'contact_person' => 'Lily Chen', 'phone' => '+86 20 8888 1234', 'email' => 'sales@hengtai.example', 'payment_terms_days' => 45]),
+            'JJ' => Supplier::create(['code' => 'SUP-002', 'name' => 'Jinjiang Sports Shoes Ltd', 'country' => 'China', 'contact_person' => 'Wang Jun', 'phone' => '+86 595 8522 7788', 'payment_terms_days' => 30]),
+            'BK' => Supplier::create(['code' => 'SUP-003', 'name' => 'Bangkok Fashion Footwear', 'country' => 'Thailand', 'contact_person' => 'Somchai K.', 'phone' => '+66 2 555 0199', 'payment_terms_days' => 30]),
+            'IN' => Supplier::create(['code' => 'SUP-004', 'name' => 'Agra Comfort Footwear Pvt Ltd', 'country' => 'India', 'contact_person' => 'Rahul Mehta', 'phone' => '+91 562 222 3344', 'payment_terms_days' => 30]),
         ];
 
         $groups = [
@@ -238,7 +238,7 @@ class DemoSeeder extends Seeder
         $invoices[2]->load('lines');
         SalesService::creditNote($invoices[2], [$invoices[2]->lines->first()->id => 2], ['date' => now()->subDays(9)->toDateString(), 'reason' => 'Wrong size sent', 'restock' => true]);
 
-        // Quotation + sales order
+        // Quotation + pre-order
         $q = SalesService::saveSalesOrder(null, ['type' => 'quotation', 'customer_id' => $customers['Lanka Shoe Palace']->id, 'date' => now()->subDays(2)->toDateString(), 'valid_until' => now()->addDays(12)->toDateString(), 'notes' => 'Season opening order - prices valid 14 days'],
             [['product_id' => $this->products['SP-5001']->id, 'unit_price' => $this->products['SP-5001']->fresh()->selling_price, 'discount_percent' => 3, 'qty' => $this->cartonQty($this->products['SP-5001'], 2)],
              ['product_id' => $this->products['EL-7013']->id, 'unit_price' => $this->products['EL-7013']->fresh()->selling_price, 'discount_percent' => 0, 'qty' => $this->cartonQty($this->products['EL-7013'], 1)]]);
@@ -270,12 +270,13 @@ class DemoSeeder extends Seeder
     {
         $po = PurchaseOrder::create([
             'number' => NumberService::next('PO'), 'supplier_id' => $supplier->id, 'order_date' => now()->addDays($day)->toDateString(),
-            'expected_date' => now()->addDays($day + 30)->toDateString(), 'currency' => 'USD', 'exchange_rate' => $rate,
+            'expected_date' => now()->addDays($day + 30)->toDateString(), 'currency' => 'LKR', 'exchange_rate' => 1,
             'allocation_method' => 'value', 'shipment_ref' => $ref, 'status' => $status, 'user_id' => Auth::id(),
         ]);
         $lines = [];
         foreach ($items as [$code, $price, $cartons]) {
-            $lines[] = ['product_id' => $this->products[$code]->id, 'unit_price' => $price, 'qty' => $this->cartonQty($this->products[$code], $cartons * 4)];
+            // supplier prices given in USD below, entered in Rs
+            $lines[] = ['product_id' => $this->products[$code]->id, 'unit_price' => round($price * $rate), 'qty' => $this->cartonQty($this->products[$code], $cartons * 4)];
         }
         PurchaseService::syncItems($po, $lines);
         PurchaseService::syncCharges($po, collect($charges)->map(fn ($amount, $type) => ['type' => $type, 'amount' => $amount])->values()->all());
@@ -286,17 +287,10 @@ class DemoSeeder extends Seeder
         return $po->fresh(['items']);
     }
 
-    /** Spread N cartons evenly across the size run (e.g. 1 carton of 12 over 6 sizes = 2 pairs each). */
+    /** Pairs for N cartons, keyed by the product's stock item (the format the forms post). */
     protected function cartonQty(Product $p, float $cartons): array
     {
-        $variants = $p->variants;
-        $pairs = (int) round($p->pairs_per_carton * $cartons);
-        $out = [];
-        foreach ($variants as $i => $v) {
-            $out[$v->id] = intdiv($pairs, $variants->count()) + ($i < $pairs % $variants->count() ? 1 : 0);
-        }
-
-        return $out;
+        return [$p->variants->first()->id => (int) round($p->pairs_per_carton * $cartons)];
     }
 
     protected function transfer(Warehouse $from, Warehouse $to, int $day, array $items): void
@@ -320,7 +314,7 @@ class DemoSeeder extends Seeder
         $value = 0;
         foreach ($items as [$code, $size, $q]) {
             $p = $this->products[$code]->fresh();
-            $vid = $p->variants->firstWhere('size', $size)->id;
+            $vid = $p->variants->first()->id;
             StockService::move($vid, $wh->id, -$q, 'adjustment', $p->cost_price, $a, $notes, $a->date);
             StockService::moveDamaged($vid, $wh->id, $q, 'adjustment', $p->cost_price, $a, $notes, $a->date);
             $a->items()->create(['product_variant_id' => $vid, 'qty' => -$q, 'unit_cost' => $p->cost_price]);

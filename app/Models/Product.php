@@ -29,9 +29,33 @@ class Product extends Model
         return $this->belongsTo(Category::class);
     }
 
+    /**
+     * Each product has exactly one stock item (variant). Stock, purchases and sales
+     * reference it; the size range is shown as its label (e.g. "28-44").
+     */
     public function variants(): HasMany
     {
-        return $this->hasMany(ProductVariant::class)->orderByRaw('CAST(size AS DECIMAL(6,1))');
+        return $this->hasMany(ProductVariant::class)->orderBy('id');
+    }
+
+    public function stockItem(): ProductVariant
+    {
+        $variant = $this->variants()->first() ?? $this->variants()->make(['size' => $this->sizeLabel(), 'sku' => $this->code]);
+        $variant->fill(['size' => $this->sizeLabel(), 'sku' => $this->code])->save();
+
+        return $variant;
+    }
+
+    /** "28-44", "40", or "-" when no size is set. */
+    public function sizeLabel(): string
+    {
+        $from = trim((string) $this->size_from);
+        $to = trim((string) $this->size_to);
+        if ($from !== '' && $to !== '' && $from !== $to) {
+            return $from . '-' . $to;
+        }
+
+        return $from ?: ($to ?: '-');
     }
 
     public function stocks(): HasManyThrough
@@ -51,7 +75,7 @@ class Product extends Model
 
     public function getDisplayNameAttribute(): string
     {
-        return trim(($this->brand?->name ? $this->brand->name . ' ' : '') . $this->name . ($this->colour ? ' - ' . $this->colour : ''));
+        return trim($this->name . ($this->colour ? ' - ' . $this->colour : '') . ($this->sizeLabel() !== '-' ? ' (' . $this->sizeLabel() . ')' : ''));
     }
 
     /** Markup rule: product override > category rule > company default. */

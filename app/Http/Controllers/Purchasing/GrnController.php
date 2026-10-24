@@ -27,18 +27,18 @@ class GrnController extends Controller
         abort_unless($purchaseOrder->canReceive(), 403, 'This PO is not ready to receive.');
         $data = $request->validate(['warehouse_id' => 'required|exists:warehouses,id', 'received_date' => 'required|date']);
         if ($draft = $purchaseOrder->grns()->where('status', 'draft')->first()) {
-            return redirect()->route('grns.edit', $draft)->with('success', 'Continue the draft GRN for this order.');
+            return redirect()->route('grns.edit', $draft)->with('success', 'You already started receiving this order. Continue here.');
         }
         $grn = PurchaseService::draftGrn($purchaseOrder, $data['warehouse_id'], $data['received_date']);
 
-        return redirect()->route('grns.edit', $grn)->with('success', "GRN {$grn->number} started. Count the goods, then enter received and damaged quantities.");
+        return redirect()->route('grns.edit', $grn)->with('success', "Receiving {$grn->number} started. Count the goods, then check the numbers.");
     }
 
     public function show(Grn $grn)
     {
-        $grn->load(['supplier', 'purchaseOrder', 'warehouse', 'items.variant.product.brand', 'user']);
+        $grn->load(['supplier', 'purchaseOrder', 'warehouse', 'items.variant.product', 'user']);
 
-        return view('purchasing.grns.show', ['grn' => $grn, 'byProduct' => $grn->items->groupBy(fn ($i) => $i->variant->product_id)]);
+        return view('purchasing.grns.show', ['grn' => $grn]);
     }
 
     public function edit(Grn $grn)
@@ -46,9 +46,9 @@ class GrnController extends Controller
         if ($grn->status === 'posted') {
             return redirect()->route('grns.show', $grn);
         }
-        $grn->load(['supplier', 'purchaseOrder', 'warehouse', 'items.variant.product.brand']);
+        $grn->load(['supplier', 'purchaseOrder', 'warehouse', 'items.variant.product']);
 
-        return view('purchasing.grns.edit', ['grn' => $grn, 'byProduct' => $grn->items->groupBy(fn ($i) => $i->variant->product_id)]);
+        return view('purchasing.grns.edit', ['grn' => $grn]);
     }
 
     public function update(Request $request, Grn $grn)
@@ -74,9 +74,9 @@ class GrnController extends Controller
         });
 
         if ($request->input('action') === 'post') {
-            return redirect()->route('grns.show', $grn)->with('success', "GRN {$grn->number} posted. Stock and landed cost updated.");
+            return redirect()->route('grns.show', $grn)->with('success', "Goods added to stock ({$grn->number}).");
         }
 
-        return back()->with('success', 'GRN draft saved.');
+        return back()->with('success', 'Saved. You can finish later.');
     }
 }

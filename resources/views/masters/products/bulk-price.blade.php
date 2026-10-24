@@ -1,7 +1,7 @@
 @extends('layouts.vertical', ['subtitle' => 'Bulk Price Update'])
 
 @section('content')
-    <x-page-header title="Bulk Price Update" :crumbs="['Pricing', 'Bulk Price Update']" />
+    <x-page-header title="Change Prices" :crumbs="['Pricing', 'Bulk Price Update']" />
 
     <div class="card">
         <div class="card-body">
@@ -23,7 +23,7 @@
                 <div class="col-12 col-md-3">
                     <label class="form-label small">Update method</label>
                     <select name="action" class="form-select" required>
-                        <option value="markup" @selected(request('action') == 'markup')>Landed cost + markup %</option>
+                        <option value="markup" @selected(request('action') == 'markup')>Real cost + profit %</option>
                         <option value="percent" @selected(request('action') == 'percent')>Change current price by %</option>
                         <option value="amount" @selected(request('action') == 'amount')>Change current price by Rs</option>
                     </select>
@@ -52,7 +52,7 @@
                 <div class="card-body table-wrap p-0">
                     <div class="table-responsive">
                         <table class="table erp-table stack mb-0">
-                            <thead><tr><th><input type="checkbox" class="form-check-input" checked onclick="document.querySelectorAll('.js-pick').forEach(c => c.checked = this.checked)"></th><th>Product</th><th class="text-end">Landed cost</th><th class="text-end">Current price</th><th class="text-end">New price</th><th class="text-end">New margin</th></tr></thead>
+                            <thead><tr><th><input type="checkbox" class="form-check-input" checked onclick="document.querySelectorAll('.js-pick').forEach(c => c.checked = this.checked)"></th><th>Product</th><th class="text-end">Real cost</th><th class="text-end">Current price</th><th class="text-end">New price</th><th class="text-end">New margin</th></tr></thead>
                             <tbody>
                                 @forelse ($preview as $row)
                                     @php $p = $row['product']; $margin = $row['new'] > 0 ? ($row['new'] - $p->cost_price) / $row['new'] * 100 : 0; @endphp

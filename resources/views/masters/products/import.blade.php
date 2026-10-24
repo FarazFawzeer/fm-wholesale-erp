@@ -15,7 +15,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="mb-3">1. Download the template</h5>
-                    <p class="text-muted">Fill one row per model and colour. Sizes can be a range (<code>39-44</code>) or a list (<code>36|37|38</code>). Brands and categories that don't exist yet are created automatically. Existing product codes are updated.</p>
+                    <p class="text-muted">Fill one row per product. Size and colour are optional. New brands and categories are added automatically. Leave the code empty to get one automatically; an existing code updates that product.</p>
                     <a href="{{ route('products.template') }}" class="btn btn-soft-primary mb-4"><iconify-icon icon="solar:download-outline" class="align-middle me-1"></iconify-icon>Download CSV template</a>
 
                     <h5 class="mb-3">2. Upload the file</h5>
@@ -34,7 +34,7 @@
                 <div class="table-responsive">
                     <table class="table table-sm mb-0">
                         <tbody>
-                            @foreach (['code' => 'Article / product code (required, unique)', 'name' => 'Model name (required)', 'brand' => 'Brand name', 'category' => 'Category name', 'colour' => 'Colour', 'gender' => 'Men / Ladies / Kids / Unisex', 'sizes' => '39-44 or 36|37|38 (required)', 'pairs_per_carton' => 'Default 12', 'selling_price' => 'Wholesale price per pair (Rs)', 'min_price' => 'Optional minimum price', 'reorder_level' => 'Low-stock alert level in pairs'] as $col => $desc)
+                            @foreach (['code' => 'Product code (optional - automatic if empty)', 'name' => 'Product name (required)', 'brand' => 'Brand name', 'category' => 'Category name', 'colour' => 'Colour', 'size_from' => 'Smallest size, e.g. 28', 'size_to' => 'Largest size, e.g. 44', 'selling_price' => 'Selling price per pair (Rs)', 'min_price' => 'Lowest price allowed (optional)', 'reorder_level' => 'Warn when stock is below (pairs)'] as $col => $desc)
                                 <tr><td><code>{{ $col }}</code></td><td class="text-muted">{{ $desc }}</td></tr>
                             @endforeach
                         </tbody>

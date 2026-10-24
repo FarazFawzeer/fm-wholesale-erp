@@ -12,11 +12,6 @@
                     <div class="col-md-3"><label class="form-label">Code *</label><input name="code" class="form-control" value="{{ old('code', $supplier->code) }}" required></div>
                     <div class="col-md-9"><label class="form-label">Supplier name *</label><input name="name" class="form-control" value="{{ old('name', $supplier->name) }}" required></div>
                     <div class="col-md-4"><label class="form-label">Country</label><input name="country" class="form-control" value="{{ old('country', $supplier->country) }}"></div>
-                    <div class="col-md-4"><label class="form-label">Purchase currency *</label>
-                        <select name="currency" class="form-select">
-                            @foreach (['USD', 'CNY', 'EUR', 'INR', 'THB', 'LKR'] as $c)<option @selected(old('currency', $supplier->currency) == $c)>{{ $c }}</option>@endforeach
-                        </select>
-                    </div>
                     <div class="col-md-4"><label class="form-label">Payment terms (days) *</label><input type="number" name="payment_terms_days" class="form-control" value="{{ old('payment_terms_days', $supplier->payment_terms_days) }}" required></div>
                     <div class="col-md-4"><label class="form-label">Contact person</label><input name="contact_person" class="form-control" value="{{ old('contact_person', $supplier->contact_person) }}"></div>
                     <div class="col-md-4"><label class="form-label">Phone</label><input name="phone" class="form-control" value="{{ old('phone', $supplier->phone) }}"></div>

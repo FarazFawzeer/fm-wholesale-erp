@@ -57,7 +57,10 @@ function initConfirms() {
     });
 }
 
-// ---------- Size grid line editor ----------
+// ---------- Item line editor: product, size range, pairs, price ----------
+const productLabel = (p) =>
+    `${p.code} - ${p.name}${p.colour ? ' - ' + p.colour : ''}${p.size && p.size !== '-' ? ' (' + p.size + ')' : ''}`;
+
 class LineEditor {
     constructor(root) {
         this.root = root;
@@ -68,19 +71,18 @@ class LineEditor {
         this.counter = 0;
         this.groupId = null;
         this.warehouseId = root.dataset.warehouse || null;
-        this.currency = root.dataset.currency || 'Rs';
-        this.priceLabel = root.dataset.priceLabel || 'Unit price';
+        this.priceLabel = root.dataset.priceLabel || 'Price per pair (Rs)';
 
         const picker = root.querySelector('.product-picker');
-        picker.innerHTML = '<option value="">Search product by name, code or brand...</option>' +
-            this.products.map((p) => `<option value="${p.id}">${esc(p.code)} - ${esc(p.brand || '')} ${esc(p.name)}</option>`).join('');
+        picker.innerHTML = '<option value="">Search product by name or code...</option>' +
+            this.products.map((p) => `<option value="${p.id}">${esc(productLabel(p))}</option>`).join('');
         this.choices = new Choices(picker, {
             searchEnabled: true,
             shouldSort: false,
             itemSelectText: '',
             searchResultLimit: 40,
             placeholder: true,
-            searchPlaceholderValue: 'Type code, model, colour or brand',
+            searchPlaceholderValue: 'Type product name or code',
             fuseOptions: { threshold: 0.25, ignoreLocation: true },
         });
         // 'choice' fires only for user picks (mouse or keyboard), not for programmatic resets
@@ -92,6 +94,17 @@ class LineEditor {
                 this.choices.removeActiveItems();
                 this.choices.setChoiceByValue('');
             }, 0);
+        });
+
+        // "+ New product" next to the search box
+        const choicesBox = picker.closest('.choices');
+        const bar = el('<div class="picker-bar"></div>');
+        choicesBox.parentNode.insertBefore(bar, choicesBox);
+        bar.appendChild(choicesBox);
+        bar.appendChild(el('<button type="button" class="btn btn-soft-primary" data-quick-add="product" title="New product">+ New<span class="d-none d-sm-inline">&nbsp;product</span></button>'));
+        document.addEventListener('erp:product-created', (e) => {
+            this.addProduct(e.detail.product);
+            if (e.detail.editor === this.root) this.addLine({ product_id: e.detail.product.id });
         });
 
         const customer = document.querySelector(root.dataset.customerSelect || '#customer_id');
@@ -120,8 +133,15 @@ class LineEditor {
         this.updateTotals();
     }
 
+    addProduct(p) {
+        if (this.byId[p.id]) return;
+        this.products.push(p);
+        this.byId[p.id] = p;
+        this.choices.setChoices([{ value: String(p.id), label: productLabel(p) }], 'value', 'label', false);
+    }
+
     priceFor(p) {
-        if (this.mode === 'purchase') return p.last_fx_price || 0;
+        if (this.mode === 'purchase') return p.last_fx_price || p.cost || '';
         if (this.mode === 'stock') return p.cost;
         if (this.groupId && p.group_prices && p.group_prices[this.groupId] !== undefined) return p.group_prices[this.groupId];
         return p.price;
@@ -129,55 +149,39 @@ class LineEditor {
 
     addLine(data) {
         const p = this.byId[data.product_id];
-        if (!p) return;
+        if (!p || !p.variants.length) return;
         const existing = this.lines.querySelector(`.line-card[data-product="${p.id}"]`);
         if (existing && !data.qty) {
             existing.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            existing.classList.add('border-primary');
-            setTimeout(() => existing.classList.remove('border-primary'), 1200);
+            existing.querySelector('.js-qty').focus();
             return;
         }
+        const variant = p.variants[0];
+        const qty = data.qty ? Object.values(data.qty).reduce((a, b) => a + num(b), 0) : '';
         const i = this.counter++;
         const name = `lines[${i}]`;
         const price = data.unit_price ?? this.priceFor(p);
         const showPrice = this.mode !== 'stock';
-        const salesFields = this.mode === 'sales' ? `
-            <div><label class="form-label small mb-1">Discount %</label>
-                <input type="number" step="0.01" min="0" max="100" class="form-control form-control-sm js-disc" name="${name}[discount_percent]" value="${data.discount_percent ?? 0}"></div>` : '';
+        const meta = [p.code, p.size && p.size !== '-' ? 'Size ' + p.size : null, p.colour, p.brand].filter(Boolean).map(esc).join(' &middot; ');
         const card = el(`
-            <div class="line-card" data-product="${p.id}">
+            <div class="line-card" data-product="${p.id}" data-variant="${variant.id}">
                 <input type="hidden" name="${name}[product_id]" value="${p.id}">
                 <div class="line-head">
-                    <div>
+                    <div class="min-w-0">
                         <div class="line-title">${esc(p.name)}</div>
-                        <div class="line-meta">${esc(p.code)} &middot; ${esc(p.brand || '')} &middot; ${p.ppc} pairs/carton
-                            ${this.mode === 'sales' ? `&middot; Min ${this.currency} ${fmt(p.min_price)}` : ''}
-                            ${this.mode !== 'purchase' ? `&middot; Cost ${this.currency} ${fmt(p.cost)}` : ''}</div>
+                        <div class="line-meta">${meta}</div>
                     </div>
                     <button type="button" class="btn btn-sm btn-soft-danger js-remove" title="Remove"><iconify-icon icon="solar:trash-bin-minimalistic-outline"></iconify-icon></button>
                 </div>
                 <div class="line-fields">
+                    <div><label class="form-label small mb-1">Pairs</label>
+                        <input type="number" min="0" inputmode="numeric" class="form-control js-qty" name="${name}[qty][${variant.id}]" value="${qty || ''}" placeholder="0">
+                        <small class="js-stock text-muted"></small></div>
                     ${showPrice ? `<div><label class="form-label small mb-1">${esc(this.priceLabel)}</label>
-                        <input type="number" step="0.01" min="0" class="form-control form-control-sm js-price" name="${name}[unit_price]" value="${price}"></div>` : ''}
-                    ${salesFields}
-                    <div><label class="form-label small mb-1">Quick fill (cartons)</label>
-                        <div class="input-group input-group-sm">
-                            <input type="number" min="0" step="0.5" class="form-control js-cartons" placeholder="0">
-                            <button type="button" class="btn btn-light js-fill">Fill</button>
-                        </div></div>
-                </div>
-                <div class="size-grid">
-                    ${p.variants.map((v) => `
-                        <div class="size-cell" data-variant="${v.id}">
-                            <label>${esc(v.size)}</label>
-                            <input type="number" min="0" inputmode="numeric" class="form-control form-control-sm js-qty"
-                                name="${name}[qty][${v.id}]" value="${(data.qty && data.qty[v.id]) || ''}" placeholder="0">
-                            <small class="js-stock"></small>
-                        </div>`).join('')}
-                </div>
-                <div class="line-foot">
-                    <span><strong class="js-pairs">0</strong> pairs <span class="text-muted js-ctn"></span></span>
-                    ${showPrice ? `<span>Line total: <strong class="js-total money">0.00</strong></span>` : ''}
+                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control js-price" name="${name}[unit_price]" value="${price}"></div>` : ''}
+                    ${this.mode === 'sales' ? `<div><label class="form-label small mb-1">Discount %</label>
+                        <input type="number" step="0.01" min="0" max="100" inputmode="decimal" class="form-control js-disc" name="${name}[discount_percent]" value="${data.discount_percent ?? 0}"></div>` : ''}
+                    ${showPrice ? `<div class="line-total"><span class="small text-muted">Total</span><strong class="js-total money">0.00</strong></div>` : ''}
                 </div>
                 <div class="js-warn small text-danger mt-1"></div>
             </div>`);
@@ -187,34 +191,23 @@ class LineEditor {
             card.remove();
             this.updateTotals();
         });
-        card.querySelector('.js-fill').addEventListener('click', () => this.fillCartons(card));
         this.renderStock(card);
         this.updateTotals();
-        this.root.querySelector('.empty-lines')?.classList.add('d-none');
+        if (!qty) card.querySelector('.js-qty').focus();
     }
 
-    fillCartons(card) {
+    stockOf(card) {
         const p = this.byId[card.dataset.product];
-        const cartons = num(card.querySelector('.js-cartons').value);
-        const inputs = [...card.querySelectorAll('.js-qty')];
-        const pairs = Math.round(cartons * p.ppc);
-        inputs.forEach((inp, i) => {
-            inp.value = Math.floor(pairs / inputs.length) + (i < pairs % inputs.length ? 1 : 0) || '';
-        });
-        this.updateTotals();
+        const v = p.variants[0];
+        return v && v.stock ? num(v.stock[this.warehouseId]) : 0;
     }
 
     renderStock(card) {
         if (this.mode === 'purchase') return;
-        const p = this.byId[card.dataset.product];
-        card.querySelectorAll('.size-cell').forEach((cell) => {
-            const v = p.variants.find((x) => x.id == cell.dataset.variant);
-            const stock = v && v.stock ? (v.stock[this.warehouseId] || 0) : 0;
-            const small = cell.querySelector('.js-stock');
-            small.textContent = `${stock} in stock`;
-            small.classList.toggle('low', stock <= 0);
-            cell.dataset.stock = stock;
-        });
+        const stock = this.stockOf(card);
+        const small = card.querySelector('.js-stock');
+        small.textContent = `${stock} pairs in stock`;
+        small.classList.toggle('text-danger', stock <= 0);
     }
 
     repriceAll() {
@@ -231,30 +224,20 @@ class LineEditor {
         let net = 0;
         this.lines.querySelectorAll('.line-card').forEach((card) => {
             const p = this.byId[card.dataset.product];
+            const qty = num(card.querySelector('.js-qty').value);
             const price = num(card.querySelector('.js-price')?.value);
             const disc = num(card.querySelector('.js-disc')?.value);
-            let linePairs = 0;
-            const warn = [];
-            card.querySelectorAll('.size-cell').forEach((cell) => {
-                const q = num(cell.querySelector('.js-qty').value);
-                linePairs += q;
-                if (this.mode !== 'purchase' && this.root.dataset.checkStock === '1' && q > num(cell.dataset.stock)) {
-                    warn.push(`size ${cell.querySelector('label').textContent}`);
-                }
-            });
             const netPrice = price * (1 - disc / 100);
-            const lineNet = linePairs * netPrice;
-            card.querySelector('.js-pairs').textContent = linePairs;
-            card.querySelector('.js-ctn').textContent = linePairs ? `(${(linePairs / p.ppc).toFixed(1)} ctn)` : '';
+            const lineNet = qty * netPrice;
             const totalEl = card.querySelector('.js-total');
             if (totalEl) totalEl.textContent = fmt(lineNet);
             const msgs = [];
-            if (warn.length) msgs.push(`Not enough stock for ${warn.join(', ')}.`);
-            if (this.mode === 'sales' && price > 0 && netPrice < p.min_price) msgs.push(`Price is below the minimum selling price (${fmt(p.min_price)}).`);
+            if (this.mode !== 'purchase' && this.root.dataset.checkStock === '1' && qty > this.stockOf(card)) msgs.push('Not enough stock.');
+            if (this.mode === 'sales' && price > 0 && netPrice < p.min_price) msgs.push(`Price is below the lowest allowed (Rs ${fmt(p.min_price)}).`);
             if (this.mode === 'sales' && disc > num(this.root.dataset.maxDiscount) && this.root.dataset.manager !== '1') msgs.push(`Discount is above the allowed ${this.root.dataset.maxDiscount}%.`);
             card.querySelector('.js-warn').textContent = msgs.join(' ');
-            pairs += linePairs;
-            gross += linePairs * price;
+            pairs += qty;
+            gross += qty * price;
             net += lineNet;
         });
         const set = (sel, v) => document.querySelectorAll(sel).forEach((e) => (e.textContent = v));
@@ -266,6 +249,86 @@ class LineEditor {
         document.dispatchEvent(new CustomEvent('erp:total', { detail: { total: net, pairs } }));
         this.root.querySelector('.empty-lines')?.classList.toggle('d-none', this.lines.children.length > 0);
     }
+}
+
+// ---------- Quick add pop-ups: new product / customer / supplier ----------
+function addOption(select, item) {
+    if (select._choices) {
+        select._choices.setChoices([{ value: String(item.id), label: item.label, selected: true }], 'value', 'label', false);
+    } else {
+        const o = new Option(item.label, item.id, true, true);
+        Object.entries(item.data || {}).forEach(([k, v]) => (o.dataset[k] = v ?? ''));
+        select.add(o);
+        select.value = String(item.id);
+    }
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function initQuickAdd() {
+    let target = null;
+    let sourceEditor = null;
+    let reloadParam = null;
+
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-quick-add]');
+        if (!btn) return;
+        e.preventDefault();
+        const modal = document.getElementById('qa-' + btn.dataset.quickAdd);
+        if (!modal) return;
+        target = btn.dataset.target ? document.querySelector(btn.dataset.target) : null;
+        sourceEditor = btn.closest('[data-line-editor]');
+        reloadParam = btn.dataset.reload || null;
+        const form = modal.querySelector('form');
+        form.reset();
+        form.querySelector('.js-errors').classList.add('d-none');
+        window.bootstrap.Modal.getOrCreateInstance(modal).show();
+        setTimeout(() => form.querySelector('input[name=name]')?.focus(), 300);
+    });
+
+    document.querySelectorAll('.js-gen-code').forEach((b) =>
+        b.addEventListener('click', async () => {
+            const r = await fetch(b.dataset.url, { headers: { Accept: 'application/json' } });
+            b.closest('.input-group').querySelector('input').value = (await r.json()).code;
+        }),
+    );
+
+    document.querySelectorAll('.js-quick-form').forEach((form) =>
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submit = form.querySelector('button:not([type=button])');
+            const errors = form.querySelector('.js-errors');
+            submit.disabled = true;
+            try {
+                const r = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const json = await r.json();
+                if (!r.ok) {
+                    errors.innerHTML = Object.values(json.errors || { e: [json.message || 'Could not save.'] }).flat().map(esc).join('<br>');
+                    errors.classList.remove('d-none');
+                    return;
+                }
+                window.bootstrap.Modal.getInstance(form.closest('.modal')).hide();
+                const kind = form.closest('.modal').id.replace('qa-', '');
+                if (kind === 'product') {
+                    document.dispatchEvent(new CustomEvent('erp:product-created', { detail: { product: json, editor: sourceEditor } }));
+                } else if (reloadParam) {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set(reloadParam, json.id);
+                    window.location.href = url.toString();
+                } else if (target) {
+                    addOption(target, json);
+                }
+            } catch (err) {
+                errors.textContent = 'Could not save. Check your connection and try again.';
+                errors.classList.remove('d-none');
+            } finally {
+                submit.disabled = false;
+            }
+        }),
+    );
 }
 
 // ---------- Split payment lines (cash + cheque + card ...) ----------
@@ -395,6 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-line-editor]').forEach((r) => (r._editor = new LineEditor(r)));
     document.querySelectorAll('[data-payment-lines]').forEach((r) => (r._pay = new PaymentLines(r)));
     initAllocations();
+    initQuickAdd();
 
     // Keep the sidebar section open for the current page
     const here = window.location.pathname;

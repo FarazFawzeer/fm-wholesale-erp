@@ -13,12 +13,12 @@ class StockAdjustment extends Model
     protected $casts = ['date' => 'date'];
 
     public const REASONS = [
-        'count' => 'Stock count correction',
-        'damaged' => 'Mark as damaged',
-        'damaged_writeoff' => 'Write off damaged',
+        'damaged' => 'Damaged pairs',
+        'damaged_writeoff' => 'Throw away damaged pairs',
         'lost' => 'Lost / missing',
-        'found' => 'Found / surplus',
-        'supplier_return' => 'Return to supplier',
+        'found' => 'Found extra pairs',
+        'supplier_return' => 'Sent back to supplier',
+        'count' => 'Correct after counting',
     ];
 
     public function warehouse(): BelongsTo

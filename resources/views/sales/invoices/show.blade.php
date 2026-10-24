@@ -10,7 +10,7 @@
         @if ($invoice->balance() > 0)
             <a href="{{ route('receipts.create', ['customer_id' => $c->id, 'invoice_id' => $invoice->id]) }}" class="btn btn-success">Receive payment</a>
         @endif
-        <a href="{{ route('credit-notes.create', $invoice) }}" class="btn btn-soft-danger">Return / credit note</a>
+        <a href="{{ route('credit-notes.create', $invoice) }}" class="btn btn-soft-danger">Return goods</a>
         @if ($wa)
             <a target="_blank" rel="noopener" class="btn btn-soft-success" href="https://wa.me/{{ $wa }}?text={{ rawurlencode('Invoice ' . $invoice->number . ' from ' . setting('company_name') . ': ' . money($invoice->total) . ', due ' . $invoice->due_date->format('d M Y') . '. Balance ' . money($invoice->balance()) . '.') }}"><iconify-icon icon="ic:baseline-whatsapp" class="align-middle"></iconify-icon></a>
         @endif
@@ -33,14 +33,14 @@
                 <div class="card-body table-wrap p-0">
                     <div class="table-responsive">
                         <table class="table erp-table stack mb-0">
-                            <thead><tr><th>Product / sizes</th><th class="text-end">Pairs</th><th class="text-end">Price</th><th class="text-end">Disc</th><th class="text-end">Amount</th><th class="text-end">Profit</th></tr></thead>
+                            <thead><tr><th>Product</th><th class="text-end">Pairs</th><th class="text-end">Price</th><th class="text-end">Disc</th><th class="text-end">Amount</th><th class="text-end">Profit</th></tr></thead>
                             <tbody>
                                 @foreach ($byProduct as $rows)
                                     @php $f = $rows->first(); $amount = $rows->sum('line_total'); $cost = $rows->sum(fn ($r) => $r->qty * $r->unit_cost); @endphp
                                     <tr>
                                         <td class="td-title">
                                             <strong>{{ $f->product->code }}</strong> <span class="small text-muted">{{ $f->product->name }} {{ $f->product->colour }}</span>
-                                            <div class="mt-1">@foreach ($rows->sortBy(fn ($r) => (float) $r->variant->size) as $r)<span class="badge bg-light text-dark fw-normal me-1">{{ $r->variant->size }} &times; {{ $r->qty }}@if ($r->delivered_qty < $r->qty) <span class="text-warning">({{ $r->delivered_qty }} sent)</span>@endif @if ($r->returned_qty)<span class="text-danger">-{{ $r->returned_qty }}</span>@endif</span>@endforeach</div>
+                                            <div class="small text-muted">Size {{ $f->product->sizeLabel() }}@if ($rows->sum('delivered_qty') < $rows->sum('qty')) &middot; <span class="text-warning">{{ $rows->sum('delivered_qty') }} sent</span>@endif @if ($rows->sum('returned_qty')) &middot; <span class="text-danger">{{ $rows->sum('returned_qty') }} returned</span>@endif</div>
                                         </td>
                                         <td data-label="Pairs" class="text-end">{{ $rows->sum('qty') }}</td>
                                         <td data-label="Price" class="text-end money">{{ money($f->unit_price) }}</td>

@@ -1,15 +1,15 @@
 @extends('layouts.vertical', ['subtitle' => 'Goods Received Notes'])
 
 @section('content')
-    <x-page-header title="Goods Received Notes (GRN)" :crumbs="['Import & Purchasing', 'GRN']">
-        <a href="{{ route('purchase-orders.index', ['status' => 'costed']) }}" class="btn btn-primary">Receive a shipment</a>
+    <x-page-header title="Received Goods" :crumbs="['Buying', 'Received Goods']">
+        <a href="{{ route('purchase-orders.index', ['status' => 'costed']) }}" class="btn btn-primary">Receive goods</a>
     </x-page-header>
 
     <div class="card">
         <div class="card-body table-wrap p-0">
             <div class="table-responsive">
                 <table class="table table-hover erp-table stack mb-0">
-                    <thead><tr><th>GRN</th><th>PO</th><th>Supplier</th><th>Received</th><th>Store</th><th class="text-end">Pairs</th><th class="text-end">Damaged</th><th class="text-end">Value</th><th>Status</th></tr></thead>
+                    <thead><tr><th>Number</th><th>PO</th><th>Supplier</th><th>Received</th><th>Store</th><th class="text-end">Pairs</th><th class="text-end">Damaged</th><th class="text-end">Value</th><th>Status</th></tr></thead>
                     <tbody>
                         @forelse ($grns as $g)
                             <tr>

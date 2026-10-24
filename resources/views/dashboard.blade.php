@@ -15,16 +15,16 @@
     {{-- Row 1: key figures --}}
     <div class="row g-3 mb-3">
         <div class="col-6 col-xl-3"><x-kpi label="Sales today" :value="money($todaySales)" icon="solar:cart-large-2-outline" color="primary" :href="route('invoices.index', ['from' => now()->toDateString()])" :sub="'Month: ' . money($month->total)" /></div>
-        <div class="col-6 col-xl-3"><x-kpi label="Gross profit (month)" :value="money($month->total - $month->cost)" icon="solar:graph-up-outline" color="success" :href="route('reports.invoice-profit')" :sub="($month->total > 0 ? number_format(($month->total - $month->cost) / $month->total * 100, 1) : 0) . '% margin'" /></div>
-        <div class="col-6 col-xl-3"><x-kpi label="Receivable" :value="money($receivable)" icon="solar:hand-money-outline" color="warning" :href="route('reports.outstanding')" :sub="'<span class=\'text-danger fw-semibold\'>' . money($overdue->sum(fn ($i) => $i->balance())) . ' overdue</span>'" /></div>
-        <div class="col-6 col-xl-3"><x-kpi label="Stock value" :value="money($stockValue)" icon="solar:box-outline" color="info" :href="route('reports.stock-valuation')" :sub="qty($stockPairs) . ' pairs at landed cost'" /></div>
+        <div class="col-6 col-xl-3"><x-kpi label="Profit this month" :value="money($month->total - $month->cost)" icon="solar:graph-up-outline" color="success" :href="route('reports.invoice-profit')" :sub="($month->total > 0 ? number_format(($month->total - $month->cost) / $month->total * 100, 1) : 0) . '% margin'" /></div>
+        <div class="col-6 col-xl-3"><x-kpi label="Customers owe us" :value="money($receivable)" icon="solar:hand-money-outline" color="warning" :href="route('reports.outstanding')" :sub="'<span class=\'text-danger fw-semibold\'>' . money($overdue->sum(fn ($i) => $i->balance())) . ' overdue</span>'" /></div>
+        <div class="col-6 col-xl-3"><x-kpi label="Stock value" :value="money($stockValue)" icon="solar:box-outline" color="info" :href="route('reports.stock-valuation')" :sub="qty($stockPairs) . ' pairs at real cost'" /></div>
     </div>
 
     {{-- Row 2: sales chart + cash position (same height) --}}
     <div class="row g-3 mb-3 dash-row">
         <div class="col-xl-8">
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center"><h5 class="card-title mb-0">Sales & gross profit - last 30 days</h5><a href="{{ route('reports.index') }}" class="small">Reports</a></div>
+                <div class="card-header d-flex justify-content-between align-items-center"><h5 class="card-title mb-0">Sales & profit - last 30 days</h5><a href="{{ route('reports.index') }}" class="small">Reports</a></div>
                 <div class="card-body d-flex flex-column"><div id="sales-chart" class="flex-grow-1" data-chart='@json($chart)'></div></div>
             </div>
         </div>
@@ -66,7 +66,7 @@
         </div>
         <div class="col-lg-4">
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center"><h5 class="card-title mb-0">Overdue customers</h5><a href="{{ route('credit-control.index') }}" class="small">Credit control</a></div>
+                <div class="card-header d-flex justify-content-between align-items-center"><h5 class="card-title mb-0">Late paying customers</h5><a href="{{ route('credit-control.index') }}" class="small">Credit control</a></div>
                 <ul class="list-group list-group-flush dash-list">
                     @forelse ($overdueCustomers as $row)
                         <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
@@ -127,7 +127,7 @@
         </div>
         <div class="col-xl-4">
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center"><h5 class="card-title mb-0">Shipments in progress</h5><a href="{{ route('purchase-orders.index') }}" class="small">Imports</a></div>
+                <div class="card-header d-flex justify-content-between align-items-center"><h5 class="card-title mb-0">Orders on the way</h5><a href="{{ route('purchase-orders.index') }}" class="small">Imports</a></div>
                 <ul class="list-group list-group-flush">
                     @forelse ($inTransit as $po)
                         <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
@@ -139,7 +139,7 @@
                     @endforelse
                 </ul>
                 <div class="card-footer bg-light-subtle mt-auto d-flex justify-content-between">
-                    <span class="fw-semibold">Landed value in progress</span><strong class="money">{{ money($inTransit->sum('landed_total')) }}</strong>
+                    <span class="fw-semibold">Real cost on the way</span><strong class="money">{{ money($inTransit->sum('landed_total')) }}</strong>
                 </div>
             </div>
         </div>

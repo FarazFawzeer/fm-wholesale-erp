@@ -2,49 +2,49 @@
     $menu = [
         ['title' => 'Overview'],
         ['label' => 'Dashboard', 'icon' => 'solar:home-2-outline', 'route' => 'root'],
-        ['title' => 'Import & Stock'],
-        ['label' => 'Import & Purchasing', 'icon' => 'solar:globus-outline', 'id' => 'menuPurchase', 'children' => [
+        ['title' => 'Buying & Stock'],
+        ['label' => 'Buying', 'icon' => 'solar:globus-outline', 'id' => 'menuPurchase', 'children' => [
             ['Purchase Orders', 'purchase-orders.index'],
             ['New Purchase Order', 'purchase-orders.create'],
-            ['Goods Received (GRN)', 'grns.index'],
+            ['Received Goods', 'grns.index'],
             ['Suppliers', 'suppliers.index'],
         ]],
-        ['label' => 'Inventory', 'icon' => 'solar:box-outline', 'id' => 'menuInventory', 'children' => [
+        ['label' => 'Stock', 'icon' => 'solar:box-outline', 'id' => 'menuInventory', 'children' => [
             ['Products', 'products.index'],
             ['Stock on Hand', 'stock.index'],
-            ['Stock Movements', 'stock.movements'],
-            ['Stock Transfers', 'stock-transfers.index'],
-            ['Adjustments & Damages', 'stock-adjustments.index'],
-            ['Bulk Import (Excel/CSV)', 'products.import'],
+            ['Stock History', 'stock.movements'],
+            ['Move Stock Between Stores', 'stock-transfers.index'],
+            ['Damaged / Correct Stock', 'stock-adjustments.index'],
+            ['Import Products (Excel)', 'products.import'],
         ]],
-        ['label' => 'Pricing', 'icon' => 'solar:tag-price-outline', 'id' => 'menuPricing', 'children' => [
-            ['Bulk Price Update', 'products.bulk-price'],
-            ['Customer Groups & Price Lists', 'customer-groups.index'],
+        ['label' => 'Prices', 'icon' => 'solar:tag-price-outline', 'id' => 'menuPricing', 'children' => [
+            ['Change Prices', 'products.bulk-price'],
+            ['Customer Price Groups', 'customer-groups.index'],
         ]],
         ['title' => 'Sales'],
         ['label' => 'Sales', 'icon' => 'solar:cart-large-2-outline', 'id' => 'menuSales', 'children' => [
             ['New Invoice', 'invoices.create'],
             ['Invoices', 'invoices.index'],
             ['Quotations', 'quotations.index'],
-            ['Sales Orders', 'sales-orders.index'],
-            ['Delivery Notes', 'deliveries.index'],
-            ['Returns / Credit Notes', 'credit-notes.index'],
+            ['Pre-Orders', 'pre-orders.index'],
+            ['Deliveries', 'deliveries.index'],
+            ['Returns', 'credit-notes.index'],
         ]],
         ['label' => 'Customers', 'icon' => 'solar:users-group-rounded-outline', 'route' => 'customers.index'],
         ['title' => 'Money'],
         ['label' => 'Payments', 'icon' => 'solar:wallet-money-outline', 'id' => 'menuPayments', 'children' => [
-            ['Customer Receipts', 'receipts.index'],
+            ['Money Received', 'receipts.index'],
             ['Supplier Payments', 'supplier-payments.index'],
             ['Cheques', 'cheques.index'],
             ['Expenses', 'expenses.index'],
         ]],
         ['label' => 'Cash & Bank', 'icon' => 'solar:card-outline', 'id' => 'menuCash', 'children' => [
             ['Daily Cashbook', 'cashbook'],
-            ['Accounts & Balances', 'accounts.index'],
+            ['Cash & Bank Accounts', 'accounts.index'],
         ]],
-        ['label' => 'Credit Control', 'icon' => 'solar:shield-warning-outline', 'id' => 'menuCredit', 'children' => [
-            ['Overdue & Reminders', 'credit-control.index'],
-            ['Supplier Obligations', 'credit-control.payables'],
+        ['label' => 'Follow Up', 'icon' => 'solar:shield-warning-outline', 'id' => 'menuCredit', 'children' => [
+            ['Late Payments', 'credit-control.index'],
+            ['We Owe Suppliers', 'credit-control.payables'],
         ]],
         ['label' => 'Reports', 'icon' => 'solar:chart-square-outline', 'route' => 'reports.index'],
         ['title' => 'System'],

@@ -9,10 +9,13 @@
             <form method="GET" class="row g-2 align-items-end">
                 <div class="col-md-6">
                     <label class="form-label">{{ $in ? 'Customer' : 'Supplier' }}</label>
-                    <select name="{{ $param }}" class="form-select" onchange="this.form.submit()">
-                        <option value="">Select {{ $in ? 'customer' : 'supplier' }}</option>
-                        @foreach ($parties as $p)<option value="{{ $p->id }}" @selected($party?->id == $p->id)>{{ $p->name }}</option>@endforeach
-                    </select>
+                    <div class="select-add">
+                        <select name="{{ $param }}" class="form-select" onchange="this.form.submit()">
+                            <option value="">Select {{ $in ? 'customer' : 'supplier' }}</option>
+                            @foreach ($parties as $p)<option value="{{ $p->id }}" @selected($party?->id == $p->id)>{{ $p->name }}</option>@endforeach
+                        </select>
+                        <button type="button" class="btn btn-soft-primary" data-quick-add="{{ $in ? 'customer' : 'supplier' }}" data-reload="{{ $param }}">+ New</button>
+                    </div>
                 </div>
                 @if ($party)
                     <div class="col-md-6 small">

@@ -21,7 +21,7 @@
                 <div class="card">
                     <div class="card-header"><h5 class="card-title mb-0">Pricing, discount & credit rules</h5></div>
                     <div class="card-body">
-                        <div class="mb-3"><label class="form-label">Default markup on landed cost (%)</label><input type="number" step="0.01" name="default_markup_percent" value="{{ $s['default_markup_percent'] }}" class="form-control">
+                        <div class="mb-3"><label class="form-label">Default markup on real cost (%)</label><input type="number" step="0.01" name="default_markup_percent" value="{{ $s['default_markup_percent'] }}" class="form-control">
                             <div class="form-text">Used for suggested prices when the product and its category have no markup rule.</div></div>
                         <div class="mb-3"><label class="form-label">Minimum margin over cost (%)</label><input type="number" step="0.01" name="min_margin_percent" value="{{ $s['min_margin_percent'] }}" class="form-control">
                             <div class="form-text">Sets the minimum selling price when a product has no fixed minimum. Sales staff can't sell below it.</div></div>

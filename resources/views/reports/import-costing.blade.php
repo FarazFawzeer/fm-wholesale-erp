@@ -10,7 +10,7 @@
                     <thead>
                         <tr><th>PO / shipment</th><th class="text-end">Pairs</th><th class="text-end">Goods (Rs)</th>
                             @foreach (\App\Models\PurchaseOrder::CHARGE_TYPES as $l)<th class="text-end">{{ $l }}</th>@endforeach
-                            <th class="text-end">Landed total</th><th class="text-end">Uplift</th><th class="text-end">Per pair</th></tr>
+                            <th class="text-end">Total real cost</th><th class="text-end">Uplift</th><th class="text-end">Per pair</th></tr>
                     </thead>
                     <tbody>
                         @foreach ($orders as $po)

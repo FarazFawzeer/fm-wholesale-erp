@@ -1,14 +1,14 @@
 @extends('layouts.vertical', ['subtitle' => 'Supplier Obligations'])
 
 @section('content')
-    <x-page-header title="Supplier Payments & Obligations" :crumbs="['Credit Control', 'Supplier obligations']">
+    <x-page-header title="We Owe Suppliers" :crumbs="['Credit Control', 'Supplier obligations']">
         <a href="{{ route('supplier-payments.create') }}" class="btn btn-primary">Pay Supplier</a>
     </x-page-header>
 
     <div class="row g-3 mb-3">
         <div class="col-6 col-lg-4"><x-kpi label="Owed to suppliers" :value="money($orders->sum(fn ($o) => $o->balance()))" icon="solar:wallet-money-outline" color="danger" /></div>
         <div class="col-6 col-lg-4"><x-kpi label="Issued cheques pending" :value="money($cheques->sum('amount'))" icon="solar:card-send-outline" color="warning" :sub="$cheques->count() . ' cheques'" /></div>
-        <div class="col-12 col-lg-4"><x-kpi label="Shipments not yet received" :value="money($inTransit->sum('landed_total'))" icon="solar:globus-outline" color="info" :sub="$inTransit->count() . ' orders (landed estimate)'" /></div>
+        <div class="col-12 col-lg-4"><x-kpi label="Shipments not yet received" :value="money($inTransit->sum('landed_total'))" icon="solar:globus-outline" color="info" :sub="$inTransit->count() . ' orders (real cost estimate)'" /></div>
     </div>
 
     <div class="card">

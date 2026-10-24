@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\PurchaseOrderItem;
 use App\Models\StockMovement;
 use App\Models\Warehouse;
+use App\Support\Catalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -34,7 +35,7 @@ class ProductController extends Controller
     public function create()
     {
         return view('masters.products.form', $this->formData(new Product([
-            'pairs_per_carton' => 12, 'reorder_level' => 36, 'is_active' => true,
+            'code' => static::nextCode(), 'reorder_level' => 24, 'is_active' => true,
         ])));
     }
 
@@ -42,12 +43,39 @@ class ProductController extends Controller
     {
         $product = DB::transaction(function () use ($request) {
             $product = Product::create($this->validated($request));
-            $this->syncSizes($product);
+            $product->stockItem();
 
             return $product;
         });
 
-        return redirect()->route('products.show', $product)->with('success', 'Product created with ' . $product->variants()->count() . ' sizes.');
+        return redirect()->route('products.show', $product)->with('success', 'Product saved.');
+    }
+
+    /** Quick add from a pop-up (purchase order, invoice, pre-order...). Returns the product for the item list. */
+    public function quickStore(Request $request)
+    {
+        $product = DB::transaction(function () use ($request) {
+            $product = Product::create($this->validated($request) + ['is_active' => true]);
+            $product->stockItem();
+
+            return $product;
+        });
+
+        return response()->json(collect(Catalog::forEditor())->firstWhere('id', $product->id));
+    }
+
+    /** Next free product code, e.g. FM-0017. */
+    public function nextCodeJson()
+    {
+        return response()->json(['code' => static::nextCode()]);
+    }
+
+    public static function nextCode(): string
+    {
+        $max = Product::where('code', 'like', 'FM-%')->pluck('code')
+            ->map(fn ($c) => (int) preg_replace('/\D/', '', $c))->max() ?? 0;
+
+        return 'FM-' . str_pad($max + 1, 4, '0', STR_PAD_LEFT);
     }
 
     public function show(Product $product)
@@ -77,7 +105,7 @@ class ProductController extends Controller
     {
         DB::transaction(function () use ($request, $product) {
             $product->update($this->validated($request, $product));
-            $this->syncSizes($product);
+            $product->stockItem();
         });
 
         return redirect()->route('products.show', $product)->with('success', 'Product updated.');
@@ -90,7 +118,7 @@ class ProductController extends Controller
         if ($used) {
             $product->update(['is_active' => false]);
 
-            return redirect()->route('products.index')->with('success', 'Product has history, so it was deactivated instead of deleted.');
+            return redirect()->route('products.index')->with('success', 'Product has history, so it was hidden instead of deleted.');
         }
         $product->delete();
 
@@ -107,9 +135,9 @@ class ProductController extends Controller
     public function template()
     {
         $rows = [
-            ['code', 'name', 'brand', 'category', 'colour', 'gender', 'sizes', 'pairs_per_carton', 'selling_price', 'min_price', 'reorder_level'],
-            ['WM-3001', 'Canvas Loafer', 'Walkmaxx', "Men's Casual", 'Olive', 'Men', '39-44', '12', '4500', '', '36'],
-            ['EL-8001', 'Wedge Sandal', 'Elegance', 'Ladies Sandals', 'Tan', 'Ladies', '36|37|38|39|40', '10', '3900', '3200', '30'],
+            ['code', 'name', 'brand', 'category', 'colour', 'size_from', 'size_to', 'selling_price', 'min_price', 'reorder_level'],
+            ['FM-0101', 'Canvas Loafer', 'Walkmaxx', "Men's Casual", 'Olive', '39', '44', '4500', '', '24'],
+            ['FM-0102', 'School Shoe', 'Kidzo', 'Kids Shoes', 'Black', '28', '44', '2900', '2500', '24'],
         ];
 
         return response()->streamDownload(function () use ($rows) {
@@ -138,31 +166,26 @@ class ProductController extends Controller
                     continue;
                 }
                 $data = array_combine($header, array_pad($row, count($header), null));
-                if (empty($data['code']) || empty($data['name'])) {
-                    $errors[] = "Row {$line}: code and name are required.";
+                if (empty($data['name'])) {
+                    $errors[] = "Row {$line}: name is required.";
                     continue;
                 }
-                $sizes = $this->parseSizes($data['sizes'] ?? '');
-                if (! $sizes) {
-                    $errors[] = "Row {$line}: sizes are missing (use 39-44 or 39|40|41).";
-                    continue;
-                }
-                $product = Product::firstOrNew(['code' => trim($data['code'])]);
+                $code = trim((string) ($data['code'] ?? '')) ?: static::nextCode();
+                $product = Product::firstOrNew(['code' => $code]);
                 $product->exists ? $updated++ : $created++;
                 $product->fill([
                     'name' => trim($data['name']),
                     'brand_id' => ! empty($data['brand']) ? Brand::firstOrCreate(['name' => trim($data['brand'])])->id : null,
                     'category_id' => ! empty($data['category']) ? Category::firstOrCreate(['name' => trim($data['category'])])->id : null,
                     'colour' => $data['colour'] ?? null,
-                    'gender' => $data['gender'] ?? null,
-                    'sizes' => implode(',', $sizes),
-                    'pairs_per_carton' => (int) ($data['pairs_per_carton'] ?? 0) ?: 12,
+                    'size_from' => $data['size_from'] ?? null,
+                    'size_to' => $data['size_to'] ?? null,
                     'selling_price' => (float) ($data['selling_price'] ?? 0),
                     'min_price' => ($data['min_price'] ?? '') !== '' ? (float) $data['min_price'] : null,
-                    'reorder_level' => (int) ($data['reorder_level'] ?? 0) ?: 36,
+                    'reorder_level' => (int) ($data['reorder_level'] ?? 0) ?: 24,
                     'is_active' => true,
                 ])->save();
-                $this->syncSizes($product);
+                $product->stockItem();
             }
         });
         fclose($handle);
@@ -232,55 +255,42 @@ class ProductController extends Controller
             'product' => $product,
             'brands' => Brand::orderBy('name')->get(),
             'categories' => Category::orderBy('name')->get(),
+            'colours' => Product::whereNotNull('colour')->distinct()->orderBy('colour')->pluck('colour'),
         ];
     }
 
+    /** Validates the product form. "New brand / category" typed in the form are created on the spot. */
     protected function validated(Request $request, ?Product $product = null): array
     {
         $data = $request->validate([
-            'code' => ['required', 'string', 'max:40', Rule::unique('products')->ignore($product)],
+            'code' => ['nullable', 'string', 'max:40', Rule::unique('products')->ignore($product)],
             'name' => 'required|string|max:255',
             'brand_id' => 'nullable|exists:brands,id',
+            'new_brand' => 'nullable|string|max:100',
             'category_id' => 'nullable|exists:categories,id',
+            'new_category' => 'nullable|string|max:100',
             'colour' => 'nullable|string|max:50',
-            'gender' => 'nullable|string|max:20',
-            'sizes' => 'required|string|max:255',
-            'pairs_per_carton' => 'required|integer|min:1|max:500',
+            'size_from' => 'nullable|string|max:10',
+            'size_to' => 'nullable|string|max:10',
             'selling_price' => 'required|numeric|min:0',
             'min_price' => 'nullable|numeric|min:0',
             'markup_percent' => 'nullable|numeric|min:0|max:500',
-            'reorder_level' => 'required|integer|min:0',
+            'reorder_level' => 'nullable|integer|min:0',
             'description' => 'nullable|string',
         ]);
-        $data['sizes'] = implode(',', $this->parseSizes($data['sizes']));
-        $data['is_active'] = $request->boolean('is_active');
+        if (! empty($data['new_brand'])) {
+            $data['brand_id'] = Brand::firstOrCreate(['name' => trim($data['new_brand'])])->id;
+        }
+        if (! empty($data['new_category'])) {
+            $data['category_id'] = Category::firstOrCreate(['name' => trim($data['new_category'])])->id;
+        }
+        unset($data['new_brand'], $data['new_category']);
+        $data['code'] = trim((string) ($data['code'] ?? '')) ?: ($product?->code ?? static::nextCode());
+        $data['reorder_level'] = $data['reorder_level'] ?? 24;
+        if ($request->has('is_active')) {
+            $data['is_active'] = $request->boolean('is_active');
+        }
 
         return $data;
-    }
-
-    /** "39-44" -> 39..44, "36|37|38" or "36, 37" -> list. */
-    protected function parseSizes(?string $raw): array
-    {
-        $raw = trim((string) $raw);
-        if (preg_match('/^(\d+(?:\.\d)?)\s*-\s*(\d+(?:\.\d)?)$/', $raw, $m)) {
-            return array_map('strval', range((int) $m[1], (int) $m[2]));
-        }
-
-        return array_values(array_unique(array_filter(array_map('trim', preg_split('/[|,;\s]+/', $raw)), fn ($s) => $s !== '')));
-    }
-
-    /** Create a variant (SKU) for every size; sizes with history are kept. */
-    protected function syncSizes(Product $product): void
-    {
-        foreach (explode(',', $product->sizes) as $size) {
-            $product->variants()->firstOrCreate(['size' => $size], ['sku' => $product->code . '-' . $size]);
-        }
-        $product->variants()->whereNotIn('size', explode(',', $product->sizes))
-            ->whereDoesntHave('stocks', fn ($q) => $q->where('qty', '!=', 0))
-            ->get()->each(function ($v) {
-                if (! StockMovement::where('product_variant_id', $v->id)->exists() && ! PurchaseOrderItem::where('product_variant_id', $v->id)->exists()) {
-                    $v->delete();
-                }
-            });
     }
 }

@@ -23,7 +23,7 @@
             @foreach ($note->items as $i)
                 <tr>
                     <td><span class="b">{{ $i->line->product->code }}</span> {{ $i->line->product->name }} {{ $i->line->product->colour }}</td>
-                    <td>{{ $i->variant->size }}</td>
+                    <td>{{ $i->line->product->sizeLabel() }}</td>
                     <td class="r">{{ $i->qty }}</td>
                     <td class="r">{{ money($i->unit_price, false) }}</td>
                     <td class="r">{{ money($i->line_total, false) }}</td>

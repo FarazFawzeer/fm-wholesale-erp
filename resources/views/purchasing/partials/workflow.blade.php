@@ -2,10 +2,10 @@
     $s = $po->status;
     $costed = $po->charges_total > 0 || in_array($s, ['costed', 'partial', 'received']);
     $steps = [
-        ['Purchase Order', 'Order shoes from overseas supplier', in_array($s, ['ordered', 'costed', 'partial', 'received']), $s === 'draft'],
-        ['Import Costing', 'Supplier cost + freight + insurance + duty + other', $costed, in_array($s, ['ordered']) && ! $costed],
-        ['Goods Received (GRN)', 'Verify quantities, sizes and damaged items', in_array($s, ['partial', 'received']), $s === 'costed' || $s === 'partial'],
-        ['Stock & Cost Updated', 'Inventory, landed cost and profit updated', $s === 'received', false],
+        ['Order', 'Order shoes from the supplier', in_array($s, ['ordered', 'costed', 'partial', 'received']), $s === 'draft'],
+        ['Shipping & duty', 'Add freight, duty and other costs', $costed, in_array($s, ['ordered']) && ! $costed],
+        ['Receive goods', 'Count pairs and note damaged ones', in_array($s, ['partial', 'received']), $s === 'costed' || $s === 'partial'],
+        ['In stock', 'Stock and real cost updated', $s === 'received', false],
     ];
 @endphp
 <div class="workflow mb-3">
