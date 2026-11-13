@@ -18,7 +18,8 @@ export default defineConfig({
                 //js
                 "resources/js/app.js",
                 "resources/js/erp.js",
-                "resources/js/pages/erp-dashboard.js",
+                "resources/js/pages/sales-chart.js",
+                "resources/js/pages/dashboard-charts.js",
                 "resources/js/config.js",
                 "resources/js/pages/dashboard.js",
                 "resources/js/pages/form-quilljs.js",

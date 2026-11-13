@@ -2,39 +2,57 @@
 
 namespace App\Services;
 
-use App\Models\Account;
 use App\Models\Cheque;
+use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
-use App\Models\PurchaseOrder;
+use App\Models\PaymentAllocation;
+use App\Models\Purchase;
+use App\Models\Supplier;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class PaymentService
 {
+    /** Keep only filled payment lines: [['method' => cash|card|online|cheque, 'amount' => .., ...], ...] */
+    public static function cleanLines(array $lines): array
+    {
+        $lines = array_values(array_filter($lines, fn ($l) => round((float) ($l['amount'] ?? 0), 2) > 0));
+        foreach ($lines as &$l) {
+            $l['amount'] = round((float) $l['amount'], 2);
+            if (! array_key_exists($l['method'] ?? '', Payment::METHODS)) {
+                $l['method'] = 'cash';
+            }
+            if ($l['method'] === 'cheque' && empty($l['cheque_no'])) {
+                throw ValidationException::withMessages(['payments' => 'Enter the cheque number.']);
+            }
+        }
+
+        return $lines;
+    }
+
+    public static function linesTotal(array $lines): float
+    {
+        return round(array_sum(array_map(fn ($l) => (float) $l['amount'], $lines)), 2);
+    }
+
     /**
-     * Record a receipt (in, from customer) or payment (out, to supplier).
+     * Record money in (from a customer) or out (to a supplier).
      *
-     * $lines:       [['method' => 'cash|bank_transfer|card|cheque', 'amount' => .., 'account_id' => ..,
-     *                 'reference' => .., 'cheque_no' => .., 'bank' => .., 'cheque_date' => ..], ...]
-     * $allocations: [invoice_id|purchase_order_id => amount]
+     * $allocations: [['invoice_id' => 5, 'amount' => 1000], ['purchase_id' => 2, ...], ['amount' => 500] (old balance)]
      */
     public static function record(string $direction, string $partyType, int $partyId, string $date,
-        array $lines, array $allocations = [], ?string $notes = null): Payment
+        array $lines, array $allocations, ?string $notes = null): ?Payment
     {
-        $lines = array_values(array_filter($lines, fn ($l) => (float) ($l['amount'] ?? 0) > 0));
+        $lines = static::cleanLines($lines);
         if (! $lines) {
-            throw ValidationException::withMessages(['lines' => 'Enter at least one payment amount.']);
+            return null;
         }
-        $total = round(array_sum(array_map(fn ($l) => (float) $l['amount'], $lines)), 2);
-        $allocations = array_filter(array_map('floatval', $allocations), fn ($a) => $a > 0);
-        if (array_sum($allocations) - $total > 0.009) {
-            throw ValidationException::withMessages(['allocations' => 'Allocated amount is more than the payment total.']);
-        }
+        $total = static::linesTotal($lines);
 
         return DB::transaction(function () use ($direction, $partyType, $partyId, $date, $lines, $allocations, $notes, $total) {
             $payment = Payment::create([
-                'number' => NumberService::next($direction === 'in' ? 'RCT' : 'PAY'),
+                'number' => NumberService::next($direction === 'in' ? 'RC' : 'PY'),
                 'direction' => $direction,
                 'party_type' => $partyType,
                 'party_id' => $partyId,
@@ -43,136 +61,199 @@ class PaymentService
                 'notes' => $notes,
                 'user_id' => auth()->id(),
             ]);
-            $sign = $direction === 'in' ? 1 : -1;
-            $partyName = $payment->party_name;
 
             foreach ($lines as $line) {
                 $chequeId = null;
-                $accountId = $line['account_id'] ?? null;
-
                 if ($line['method'] === 'cheque') {
-                    if (empty($line['cheque_no']) || empty($line['cheque_date'])) {
-                        throw ValidationException::withMessages(['lines' => 'Cheque number and cheque date are required.']);
-                    }
                     $chequeId = Cheque::create([
                         'direction' => $direction === 'in' ? 'received' : 'issued',
                         'cheque_no' => $line['cheque_no'],
                         'bank' => $line['bank'] ?? null,
-                        'cheque_date' => $line['cheque_date'],
+                        'cheque_date' => ($line['cheque_date'] ?? null) ?: $date,
                         'amount' => $line['amount'],
                         'party_type' => $partyType,
                         'party_id' => $partyId,
                         'payment_id' => $payment->id,
-                        'account_id' => $accountId,
-                        'status' => 'pending',
                     ])->id;
-                } else {
-                    $accountId = $accountId ?: static::defaultAccountFor($line['method']);
-                    LedgerService::post($accountId, $date, $direction === 'in' ? 'receipt' : 'payment',
-                        ($direction === 'in' ? 'Receipt from ' : 'Payment to ') . $partyName . ' (' . $payment->number . ')',
-                        $sign * (float) $line['amount'], $payment);
                 }
-
                 $payment->lines()->create([
                     'method' => $line['method'],
-                    'account_id' => $accountId,
-                    'cheque_id' => $chequeId,
                     'amount' => $line['amount'],
                     'reference' => $line['reference'] ?? null,
+                    'cheque_id' => $chequeId,
                 ]);
             }
 
-            foreach ($allocations as $docId => $amount) {
-                if ($partyType === 'customer') {
-                    $invoice = Invoice::where('customer_id', $partyId)->findOrFail($docId);
-                    $payment->allocations()->create(['invoice_id' => $invoice->id, 'amount' => min($amount, $invoice->balance())]);
-                    $invoice->refreshPaymentStatus();
-                } else {
-                    $po = PurchaseOrder::where('supplier_id', $partyId)->findOrFail($docId);
-                    $payment->allocations()->create(['purchase_order_id' => $po->id, 'amount' => $amount]);
-                    $po->update(['paid_amount' => $po->paid_amount + $amount]);
+            foreach ($allocations as $a) {
+                if (round((float) $a['amount'], 2) <= 0) {
+                    continue;
                 }
+                $alloc = $payment->allocations()->create([
+                    'invoice_id' => $a['invoice_id'] ?? null,
+                    'purchase_id' => $a['purchase_id'] ?? null,
+                    'amount' => round((float) $a['amount'], 2),
+                ]);
+                $alloc->invoice?->refreshPaid();
+                $alloc->purchase?->refreshPaid();
             }
 
             return $payment;
         });
     }
 
-    /** Auto-allocate a receipt to the oldest open invoices of a customer. */
-    public static function oldestFirst(int $customerId, float $amount): array
+    /**
+     * Spread an amount over what a customer / supplier owes: old balance first, then the oldest bills.
+     * Stops if the amount is more than they owe.
+     */
+    public static function oldestFirst(string $partyType, int $partyId, float $amount, ?int $onlyDocId = null): array
     {
+        $party = $partyType === 'customer' ? Customer::findOrFail($partyId) : Supplier::findOrFail($partyId);
+        $docs = $partyType === 'customer'
+            ? Invoice::where('customer_id', $partyId)->unpaid()->orderBy('date')->orderBy('id')->get()
+            : Purchase::where('supplier_id', $partyId)->unpaid()->orderBy('date')->orderBy('id')->get();
+        $key = $partyType === 'customer' ? 'invoice_id' : 'purchase_id';
+
+        if ($onlyDocId) { // pay one bill first, then anything left goes to the others
+            $docs = $docs->sortBy(fn ($d) => $d->id == $onlyDocId ? 0 : 1)->values();
+        }
+
         $alloc = [];
-        foreach (Invoice::where('customer_id', $customerId)->open()->orderBy('due_date')->get() as $invoice) {
-            if ($amount <= 0) {
+        $left = round($amount, 2);
+        $opening = $party->openingDue();
+        if ($opening > 0 && ! $onlyDocId) {
+            $take = min($left, $opening);
+            $alloc[] = ['amount' => $take];
+            $left = round($left - $take, 2);
+        }
+        foreach ($docs as $doc) {
+            if ($left <= 0) {
                 break;
             }
-            $take = min($amount, $invoice->balance());
-            $alloc[$invoice->id] = $take;
-            $amount -= $take;
+            $take = min($left, $doc->balance());
+            $alloc[] = [$key => $doc->id, 'amount' => $take];
+            $left = round($left - $take, 2);
+        }
+        if ($left > 0 && $onlyDocId && $opening > 0) {
+            $take = min($left, $opening);
+            $alloc[] = ['amount' => $take];
+            $left = round($left - $take, 2);
+        }
+        if ($left > 0.009) {
+            throw ValidationException::withMessages(['payments' => 'The amount is ' . money($left) . ' more than what is owed (' . money($amount - $left) . ').']);
         }
 
         return $alloc;
     }
 
-    public static function defaultAccountFor(string $method): int
+    /**
+     * After goods come back a bill can end up paid more than its new total.
+     * Take that extra off the bill (newest payment first) so it can be used elsewhere.
+     */
+    public static function freeExcess(Invoice|Purchase $doc): void
     {
-        $type = match ($method) {
-            'cash' => 'cash',
-            'card' => 'card',
-            default => 'bank',
-        };
-
-        return Account::where('type', $type)->orderBy('id')->value('id') ?? Account::orderBy('id')->value('id');
+        $doc->refresh();
+        $excess = round($doc->paid_amount - ($doc->total - $doc->returned_amount), 2);
+        if ($excess <= 0.009) {
+            return;
+        }
+        foreach ($doc->allocations()->orderByDesc('id')->get() as $allocation) {
+            if ($excess <= 0) {
+                break;
+            }
+            $reduce = min($excess, (float) $allocation->amount);
+            $left = round($allocation->amount - $reduce, 2);
+            $left > 0 ? $allocation->update(['amount' => $left]) : $allocation->delete();
+            $excess = round($excess - $reduce, 2);
+        }
+        $doc->refreshPaid();
     }
 
-    /** Move a cheque through deposited -> cleared / bounced, posting to the bank when money moves. */
-    public static function updateChequeStatus(Cheque $cheque, string $status, string $date, ?int $accountId = null, ?string $remarks = null): void
+    /** Money paid that is not on any bill yet (credit). */
+    public static function unusedCredit(string $partyType, int $partyId): float
     {
-        DB::transaction(function () use ($cheque, $status, $date, $accountId, $remarks) {
-            $accountId = $accountId ?: $cheque->account_id ?: static::defaultAccountFor('bank_transfer');
-            $received = $cheque->direction === 'received';
-            $partyName = $cheque->party()?->name;
+        $paid = (float) Payment::where('party_type', $partyType)->where('party_id', $partyId)->sum('total');
+        $used = (float) PaymentAllocation::whereHas('payment', fn ($q) => $q->where('party_type', $partyType)->where('party_id', $partyId))->sum('amount');
 
-            if ($status === 'cleared' && $cheque->status !== 'cleared') {
-                LedgerService::post($accountId, $date, $received ? 'cheque_cleared' : 'cheque_paid',
-                    'Cheque ' . $cheque->cheque_no . ($received ? ' from ' : ' to ') . $partyName,
-                    $received ? $cheque->amount : -$cheque->amount, $cheque);
+        return max(0, round($paid - $used, 2));
+    }
+
+    /**
+     * Put any unused money (credit) on the old balance first, then the oldest unpaid bills.
+     * Whatever is left stays as credit and is used on the next bill automatically.
+     */
+    public static function applyCredit(string $partyType, int $partyId): void
+    {
+        if (static::unusedCredit($partyType, $partyId) <= 0.009) {
+            return;
+        }
+        $party = $partyType === 'customer' ? Customer::findOrFail($partyId) : Supplier::findOrFail($partyId);
+        $key = $partyType === 'customer' ? 'invoice_id' : 'purchase_id';
+        $docs = $partyType === 'customer'
+            ? Invoice::where('customer_id', $partyId)->unpaid()->orderBy('date')->orderBy('id')->get()
+            : Purchase::where('supplier_id', $partyId)->unpaid()->orderBy('date')->orderBy('id')->get();
+
+        $payments = Payment::where('party_type', $partyType)->where('party_id', $partyId)
+            ->withSum('allocations', 'amount')->orderBy('date')->orderBy('id')->get()
+            ->map(fn ($p) => ['id' => $p->id, 'free' => round($p->total - (float) $p->allocations_sum_amount, 2)])
+            ->filter(fn ($p) => $p['free'] > 0.009)->values()->all();
+
+        $targets = [];
+        if (($opening = $party->openingDue()) > 0.009) {
+            $targets[] = [null, $opening];
+        }
+        foreach ($docs as $doc) {
+            $targets[] = [$doc, $doc->balance()];
+        }
+
+        foreach ($targets as [$doc, $need]) {
+            foreach ($payments as &$p) {
+                if ($need <= 0.009) {
+                    break;
+                }
+                if ($p['free'] <= 0.009) {
+                    continue;
+                }
+                $take = round(min($need, $p['free']), 2);
+                PaymentAllocation::create(['payment_id' => $p['id'], $key => $doc?->id, 'amount' => $take]);
+                $p['free'] = round($p['free'] - $take, 2);
+                $need = round($need - $take, 2);
             }
+            unset($p);
+            $doc?->refreshPaid();
+        }
+    }
 
-            if (in_array($status, ['bounced', 'cancelled']) && $cheque->isOpen()) {
-                static::reverseChequeFromPayment($cheque);
+    /** Cheque cleared, or returned (bounced). A bounced cheque cancels that part of the payment. */
+    public static function updateCheque(Cheque $cheque, string $status, string $date): void
+    {
+        DB::transaction(function () use ($cheque, $status, $date) {
+            if ($status === 'bounced' && $cheque->status !== 'bounced') {
+                static::reverseCheque($cheque);
             }
-
-            $cheque->update([
-                'status' => $status,
-                'status_date' => $date,
-                'account_id' => $accountId,
-                'remarks' => $remarks ?? $cheque->remarks,
-            ]);
+            $cheque->update(['status' => $status, 'status_date' => $date]);
         });
     }
 
-    /** A bounced cheque means the payment never happened: reduce the payment and re-open invoices / POs. */
-    protected static function reverseChequeFromPayment(Cheque $cheque): void
+    protected static function reverseCheque(Cheque $cheque): void
     {
         $payment = $cheque->payment;
         if (! $payment || $payment->total <= 0) {
             return;
         }
-        $ratio = min(1, $cheque->amount / $payment->total);
-
-        foreach ($payment->allocations as $allocation) {
-            $reduce = round($allocation->amount * $ratio, 2);
-            $allocation->update(['amount' => $allocation->amount - $reduce]);
-            if ($allocation->invoice) {
-                $allocation->invoice->refreshPaymentStatus();
+        $left = min($cheque->amount, $payment->total);
+        // take the money back from the newest bills first
+        foreach ($payment->allocations()->orderByDesc('id')->get() as $allocation) {
+            if ($left <= 0) {
+                break;
             }
-            if ($allocation->purchaseOrder) {
-                $allocation->purchaseOrder->decrement('paid_amount', $reduce);
-            }
+            $reduce = min($left, $allocation->amount);
+            $allocation->update(['amount' => round($allocation->amount - $reduce, 2)]);
+            $left = round($left - $reduce, 2);
+            $allocation->invoice?->refreshPaid();
+            $allocation->purchase?->refreshPaid();
         }
         $payment->update([
-            'total' => $payment->total - $cheque->amount,
+            'total' => round($payment->total - $cheque->amount, 2),
             'notes' => trim($payment->notes . "\nCheque " . $cheque->cheque_no . ' returned (' . money($cheque->amount) . ').'),
         ]);
     }

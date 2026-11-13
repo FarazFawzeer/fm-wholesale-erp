@@ -12,14 +12,23 @@ class StockMovement extends Model
 
     protected $casts = ['date' => 'date'];
 
-    public function variant(): BelongsTo
+    public const TYPES = [
+        'opening' => 'Opening stock',
+        'purchase' => 'Bought',
+        'sale' => 'Sold',
+        'return' => 'Customer return',
+        'purchase_return' => 'Returned to supplier',
+        'correction' => 'Stock correction',
+    ];
+
+    public function colour(): BelongsTo
     {
-        return $this->belongsTo(ProductVariant::class, 'product_variant_id');
+        return $this->belongsTo(ProductColour::class, 'product_colour_id');
     }
 
-    public function warehouse(): BelongsTo
+    public function reference(): MorphTo
     {
-        return $this->belongsTo(Warehouse::class);
+        return $this->morphTo();
     }
 
     public function user(): BelongsTo
@@ -27,8 +36,8 @@ class StockMovement extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function reference(): MorphTo
+    public function typeLabel(): string
     {
-        return $this->morphTo();
+        return self::TYPES[$this->type] ?? ucfirst($this->type);
     }
 }

@@ -1,16 +1,10 @@
-<div class="card no-print">
-    <div class="card-body">
-        <form class="filter-bar">
-            <div><label class="form-label small mb-1">From</label><input type="date" name="from" value="{{ $from }}" class="form-control"></div>
-            <div><label class="form-label small mb-1">To</label><input type="date" name="to" value="{{ $to }}" class="form-control"></div>
-            {{ $slot ?? '' }}
-            <button class="btn btn-light">Show</button>
-            <div class="btn-group">
-                @foreach (['This month' => [now()->startOfMonth(), now()], 'Last 30 days' => [now()->subDays(30), now()], 'Last month' => [now()->subMonthNoOverflow()->startOfMonth(), now()->subMonthNoOverflow()->endOfMonth()]] as $l => [$a, $b])
-                    <a class="btn btn-sm btn-outline-secondary" href="?{{ http_build_query(array_merge(request()->except(['from', 'to']), ['from' => $a->toDateString(), 'to' => $b->toDateString()])) }}">{{ $l }}</a>
-                @endforeach
-            </div>
-            <button type="button" class="btn btn-light ms-auto" onclick="window.print()"><iconify-icon icon="solar:printer-outline" class="align-middle"></iconify-icon></button>
-        </form>
+<form class="filter-bar mb-3 no-print" method="GET">
+    <div class="period-btns" role="group">
+        @foreach (['today' => 'Today', 'week' => 'This week', '' => 'This month', 'last_month' => 'Last month', 'year' => 'This year'] as $key => $label)
+            <a href="{{ request()->fullUrlWithQuery(['period' => $key ?: null, 'from' => null, 'to' => null]) }}" class="btn btn-sm {{ (request('period') ?? '') === $key && ($key !== '' || ! request('from')) ? 'btn-primary' : 'btn-light' }}">{{ $label }}</a>
+        @endforeach
     </div>
-</div>
+    <input type="date" name="from" value="{{ $from }}" class="form-control form-control-sm" title="From">
+    <input type="date" name="to" value="{{ $to }}" class="form-control form-control-sm" title="To">
+    <button class="btn btn-sm btn-soft-primary">Show</button>
+</form>

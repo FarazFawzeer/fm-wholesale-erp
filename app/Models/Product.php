@@ -5,19 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
+/** A shoe model: name + size range + photo. Stock is kept per colour (ProductColour). */
 class Product extends Model
 {
     protected $guarded = [];
 
-    protected $casts = [
-        'is_active' => 'boolean',
-        'cost_price' => 'float',
-        'selling_price' => 'float',
-        'min_price' => 'float',
-        'markup_percent' => 'float',
-    ];
+    protected $casts = ['is_active' => 'boolean', 'cost_price' => 'float', 'selling_price' => 'float'];
 
     public function brand(): BelongsTo
     {
@@ -29,24 +23,22 @@ class Product extends Model
         return $this->belongsTo(Category::class);
     }
 
-    /**
-     * Each product has exactly one stock item (variant). Stock, purchases and sales
-     * reference it; the size range is shown as its label (e.g. "28-44").
-     */
-    public function variants(): HasMany
+    public function colours(): HasMany
     {
-        return $this->hasMany(ProductVariant::class)->orderBy('id');
+        return $this->hasMany(ProductColour::class)->orderBy('id');
     }
 
-    public function stockItem(): ProductVariant
+    public function invoiceItems(): HasMany
     {
-        $variant = $this->variants()->first() ?? $this->variants()->make(['size' => $this->sizeLabel(), 'sku' => $this->code]);
-        $variant->fill(['size' => $this->sizeLabel(), 'sku' => $this->code])->save();
-
-        return $variant;
+        return $this->hasMany(InvoiceItem::class);
     }
 
-    /** "28-44", "40", or "-" when no size is set. */
+    public function purchaseItems(): HasMany
+    {
+        return $this->hasMany(PurchaseItem::class);
+    }
+
+    /** "30-42", "38" or "" */
     public function sizeLabel(): string
     {
         $from = trim((string) $this->size_from);
@@ -55,66 +47,70 @@ class Product extends Model
             return $from . '-' . $to;
         }
 
-        return $from ?: ($to ?: '-');
+        return $from !== '' ? $from : $to;
     }
 
-    public function stocks(): HasManyThrough
+    public function totalStock(): int
     {
-        return $this->hasManyThrough(Stock::class, ProductVariant::class);
+        return (int) ($this->relationLoaded('colours') ? $this->colours->sum('qty') : $this->colours()->sum('qty'));
     }
 
-    public function priceListItems(): HasMany
+    public function isLow(): bool
     {
-        return $this->hasMany(PriceListItem::class);
+        return $this->totalStock() <= $this->low_stock_level;
     }
 
-    public function totalStock(?int $warehouseId = null): int
+    public function imageUrl(): ?string
     {
-        return (int) $this->stocks()->when($warehouseId, fn ($q) => $q->where('warehouse_id', $warehouseId))->sum('qty');
+        return $this->image_path ? asset($this->image_path) : null;
     }
 
-    public function getDisplayNameAttribute(): string
+    /** "black 20 · white 10 · blue 30" */
+    public function colourSummary(): string
     {
-        return trim($this->name . ($this->colour ? ' - ' . $this->colour : '') . ($this->sizeLabel() !== '-' ? ' (' . $this->sizeLabel() . ')' : ''));
+        return $this->colours->map(fn ($c) => $c->colour . ' ' . $c->qty)->implode(' · ');
     }
 
-    /** Markup rule: product override > category rule > company default. */
-    public function effectiveMarkup(): float
+    public function marginPercent(): ?float
     {
-        return (float) ($this->markup_percent ?? $this->category?->markup_percent ?? setting('default_markup_percent'));
+        return $this->selling_price > 0 && $this->cost_price > 0
+            ? round(($this->selling_price - $this->cost_price) / $this->selling_price * 100, 1)
+            : null;
     }
 
-    public function suggestedPrice(): float
+    /** Next item number with the shop's prefix, e.g. ARD-1001 (prefix set in Settings). */
+    public static function nextCode(): string
     {
-        return round($this->cost_price * (1 + $this->effectiveMarkup() / 100), -1);
-    }
-
-    /** Lowest allowed selling price per pair. */
-    public function minimumPrice(): float
-    {
-        if ($this->min_price) {
-            return (float) $this->min_price;
+        $prefix = strtoupper(trim((string) setting('item_prefix', 'ARD'))) ?: 'ARD';
+        $max = static::where('code', 'like', $prefix . '-%')->pluck('code')
+            ->map(fn ($c) => (int) preg_replace('/\D/', '', substr($c, strlen($prefix) + 1)))->max();
+        $n = max(1000, (int) $max) + 1;
+        while (static::where('code', $prefix . '-' . $n)->exists()) {
+            $n++;
         }
 
-        return round($this->cost_price * (1 + setting('min_margin_percent') / 100), 2);
+        return $prefix . '-' . $n;
     }
 
-    /** Price for a customer group: price list override, else group discount off the wholesale price. */
-    public function priceForGroup(?CustomerGroup $group): float
+    /** Data used by the item pickers on the purchase / sale screens. */
+    public function toPicker(): array
     {
-        if (! $group) {
-            return (float) $this->selling_price;
-        }
-        $listed = $this->priceListItems->firstWhere('customer_group_id', $group->id);
-        if ($listed) {
-            return (float) $listed->price;
-        }
-
-        return round($this->selling_price * (1 - $group->discount_percent / 100), 2);
+        return [
+            'id' => $this->id,
+            'code' => $this->code,
+            'name' => $this->name,
+            'size' => $this->sizeLabel(),
+            'brand' => $this->brand?->name,
+            'category_id' => $this->category_id,
+            'image' => $this->imageUrl(),
+            'price' => (float) $this->selling_price,
+            'cost' => (float) $this->cost_price,
+            'colours' => $this->colours->map(fn ($c) => ['id' => $c->id, 'name' => $c->colour, 'qty' => (int) $c->qty, 'hex' => ProductColour::hex($c->colour)])->values(),
+        ];
     }
 
-    public function marginPercent(): float
+    public static function pickerList(): array
     {
-        return $this->selling_price > 0 ? (($this->selling_price - $this->cost_price) / $this->selling_price) * 100 : 0;
+        return static::with(['colours', 'brand'])->where('is_active', true)->orderByRaw('(SELECT COALESCE(SUM(qty),0) FROM product_colours pc WHERE pc.product_id = products.id) <= 0')->orderBy('name')->get()->map->toPicker()->values()->all();
     }
 }

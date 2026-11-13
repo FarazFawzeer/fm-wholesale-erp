@@ -1,67 +1,76 @@
-@extends('layouts.base', ['subtitle' => 'Login'])
+@extends('layouts.base', ['subtitle' => 'Sign in'])
 
 @section('body-attribuet')
     class="authentication-bg"
 @endsection
 
 @section('content')
-    <div class="account-pages py-5">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-sm-10 col-md-7 col-lg-5 col-xl-4">
-                    <div class="card border-0 shadow-lg">
-                        <div class="card-body p-4 p-sm-5">
-                            <div class="text-center">
-                                <div class="mx-auto mb-4 text-center auth-logo">
-                                    <a href="#" class="logo-dark">
-                                        <img src="{{ asset('images/logo-dark.png') }}" height="72" alt="FM Shoes">
-                                    </a>
+    <div class="auth-shell">
+        {{-- Sign-in form --}}
+        <main class="auth-main">
+            <div class="auth-form">
+                <img src="{{ asset('images/logo-dark.png') }}" alt="{{ setting('company_name') ?: 'FM Shoes' }}" class="auth-form-logo">
 
-                                    <a href="#" class="logo-light">
-                                        <img src="{{ asset('images/logo-light.png') }}" height="72" alt="FM Shoes">
-                                    </a>
-                                </div>
-                                <h4 class="fw-bold mb-1">Welcome back</h4>
-                                <p class="text-muted mb-0">Sign in to continue to FM Wholesale ERP</p>
-                            </div>
-                            <form method="POST" action="{{ route('login.post') }}" class="mt-4">
-                                @csrf
+                <h2>Sign in</h2>
+                <p class="auth-sub">Enter your email and password</p>
 
-                                <div class="mb-3">
-                                    <label for="email" class="form-label">Email Address</label>
-                                    <input type="email" class="form-control" id="email" name="email"
-                                        value="{{ old('email') }}" placeholder="Enter your email" autocomplete="username" required autofocus>
-                                    @error('email')
-                                        <small class="text-danger">{{ $message }}</small>
-                                    @enderror
-                                </div>
+                @if (session('status'))
+                    <div class="alert alert-success py-2 small">{{ session('status') }}</div>
+                @endif
 
-                                <div class="mb-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <label for="password" class="form-label">Password</label>
-                                    </div>
-                                    <input type="password" class="form-control" id="password" name="password"
-                                        placeholder="Enter your password" autocomplete="current-password" required>
-                                    @error('password')
-                                        <small class="text-danger">{{ $message }}</small>
-                                    @enderror
-                                </div>
+                <form method="POST" action="{{ route('login.post') }}" novalidate>
+                    @csrf
 
-                                <div class="form-check mb-3">
-                                    <input type="checkbox" class="form-check-input" id="remember" name="remember">
-                                    <label class="form-check-label" for="remember">Remember me</label>
-                                </div>
-
-                                <div class="d-grid">
-                                    <button class="btn btn-brand btn-lg fw-medium" type="submit">Sign In</button>
-                                </div>
-                            </form>
-
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email address</label>
+                        <div class="auth-input">
+                            <iconify-icon icon="solar:letter-outline"></iconify-icon>
+                            <input type="email" class="form-control @error('email') is-invalid @enderror" id="email" name="email"
+                                value="{{ old('email') }}" placeholder="name@company.com" autocomplete="username" required autofocus>
                         </div>
+                        @error('email')<div class="auth-error">{{ $message }}</div>@enderror
                     </div>
-                    <p class="text-center auth-footer mt-3 mb-0">&copy; {{ date('Y') }} FM Shoes &middot; Wholesale in imported shoes & footwear</p>
-                </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <div class="auth-input">
+                            <iconify-icon icon="solar:lock-keyhole-minimalistic-outline"></iconify-icon>
+                            <input type="password" class="form-control @error('password') is-invalid @enderror" id="password" name="password"
+                                placeholder="Enter your password" autocomplete="current-password" required>
+                            <button type="button" class="auth-eye" data-toggle-password aria-label="Show password">
+                                <iconify-icon icon="solar:eye-outline"></iconify-icon>
+                            </button>
+                        </div>
+                        @error('password')<div class="auth-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="form-check mb-4">
+                        <input type="checkbox" class="form-check-input" id="remember" name="remember" {{ old('remember') ? 'checked' : '' }}>
+                        <label class="form-check-label" for="remember">Keep me signed in</label>
+                    </div>
+
+                    <button class="btn btn-auth w-100" type="submit">
+                        Sign in <iconify-icon icon="solar:arrow-right-outline" class="align-middle ms-1"></iconify-icon>
+                    </button>
+                </form>
+
             </div>
-        </div>
+
+            <div class="auth-main-foot">&copy; {{ date('Y') }} <b>FM Enterprises</b> &middot; All rights reserved</div>
+        </main>
     </div>
 @endsection
+
+@push('page-js')
+<script>
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-toggle-password]');
+    if (!btn) return;
+    const input = btn.parentElement.querySelector('input');
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.querySelector('iconify-icon').setAttribute('icon', show ? 'solar:eye-closed-outline' : 'solar:eye-outline');
+    btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+});
+</script>
+@endpush

@@ -6,18 +6,25 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/** A customer receipt (in) or supplier payment (out), split across one or more methods. */
+/** Money from a customer (in) or to a supplier (out), split across one or more methods. */
 class Payment extends Model
 {
     protected $guarded = [];
 
-    protected $casts = ['date' => 'date'];
+    protected $casts = ['date' => 'date', 'total' => 'float'];
 
     public const METHODS = [
         'cash' => 'Cash',
-        'bank_transfer' => 'Bank transfer',
         'card' => 'Card',
+        'online' => 'Online / Bank',
         'cheque' => 'Cheque',
+    ];
+
+    public const ICONS = [
+        'cash' => 'solar:wad-of-money-outline',
+        'card' => 'solar:card-outline',
+        'online' => 'solar:smartphone-2-outline',
+        'cheque' => 'solar:document-text-outline',
     ];
 
     public function lines(): HasMany

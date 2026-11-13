@@ -11,12 +11,8 @@ class Settings
         'company_tagline' => 'Wholesale in Imported Shoes & Footwear Items',
         'company_address' => 'Colombo, Sri Lanka',
         'company_phone' => '',
-        'currency' => 'LKR',
-        'default_markup_percent' => 35,
-        'min_margin_percent' => 10,
-        'max_discount_percent' => 10,
-        'default_payment_terms' => 30,
-        'reminder_days_before_due' => 3,
+        'item_prefix' => 'ARD',
+        'invoice_terms' => 'Please check the goods when you receive them. Thank you!',
     ];
 
     protected static ?array $cache = null;
@@ -24,7 +20,11 @@ class Settings
     public static function all(): array
     {
         if (static::$cache === null) {
-            static::$cache = array_merge(static::DEFAULTS, Setting::pluck('value', 'key')->all());
+            try {
+                static::$cache = array_merge(static::DEFAULTS, Setting::pluck('value', 'key')->all());
+            } catch (\Throwable $e) {
+                static::$cache = static::DEFAULTS; // database not ready yet
+            }
         }
 
         return static::$cache;

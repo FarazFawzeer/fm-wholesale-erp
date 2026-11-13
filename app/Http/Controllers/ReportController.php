@@ -2,200 +2,131 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AccountTransaction;
-use App\Models\Category;
-use App\Models\Cheque;
-use App\Models\CreditNote;
 use App\Models\Customer;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Product;
-use App\Models\PurchaseOrder;
-use App\Models\Warehouse;
+use App\Models\Purchase;
+use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
-    public function index()
+    protected function range(Request $request): array
     {
-        return view('reports.index');
+        $preset = $request->period;
+        [$from, $to] = match ($preset) {
+            'today' => [now()->toDateString(), now()->toDateString()],
+            'week' => [now()->startOfWeek()->toDateString(), now()->toDateString()],
+            'last_month' => [now()->subMonthNoOverflow()->startOfMonth()->toDateString(), now()->subMonthNoOverflow()->endOfMonth()->toDateString()],
+            'year' => [now()->startOfYear()->toDateString(), now()->toDateString()],
+            default => [$request->from ?? now()->startOfMonth()->toDateString(), $request->to ?? now()->toDateString()],
+        };
+
+        return [$from, $to];
     }
 
-    protected function range(Request $request, int $days = 30): array
+    /** Money summary: sales, profit, expenses, money in / out by method. */
+    public function index(Request $request)
     {
-        return [
-            $request->input('from', now()->subDays($days)->toDateString()),
-            $request->input('to', now()->toDateString()),
-        ];
-    }
+        [$from, $to] = $this->range($request);
 
-    public function stockValuation(Request $request)
-    {
-        $wh = $request->warehouse_id;
-        $products = Product::with(['brand', 'category'])
-            ->withSum(['stocks as on_hand' => fn ($q) => $q->when($wh, fn ($w) => $w->where('warehouse_id', $wh))], 'qty')
-            ->withSum(['stocks as damaged' => fn ($q) => $q->when($wh, fn ($w) => $w->where('warehouse_id', $wh))], 'damaged_qty')
-            ->orderBy('code')->get()->filter(fn ($p) => $p->on_hand > 0 || $p->damaged > 0);
+        $sales = Invoice::whereBetween('date', [$from, $to])
+            ->selectRaw('COUNT(*) AS bills, COALESCE(SUM(total - returned_amount), 0) AS amount, COALESCE(SUM(cost_total), 0) AS cost, COALESCE(SUM(discount), 0) AS discount')
+            ->first();
+        $pairs = (int) DB::table('invoice_items')->join('invoices', 'invoices.id', '=', 'invoice_items.invoice_id')
+            ->whereBetween('invoices.date', [$from, $to])->sum(DB::raw('invoice_items.qty - invoice_items.returned_qty'));
+        $expenses = (float) Expense::whereBetween('date', [$from, $to])->sum('amount');
+        $bought = Purchase::whereBetween('date', [$from, $to])->selectRaw('COUNT(*) AS bills, COALESCE(SUM(total - returned_amount), 0) AS amount')->first();
 
-        return view('reports.stock-valuation', [
-            'products' => $products,
-            'byCategory' => $products->groupBy(fn ($p) => $p->category?->name ?? 'Uncategorised'),
-            'warehouses' => Warehouse::all(),
-        ]);
-    }
+        $byMethod = fn (string $direction) => DB::table('payment_lines')
+            ->join('payments', 'payments.id', '=', 'payment_lines.payment_id')
+            ->leftJoin('cheques', 'cheques.id', '=', 'payment_lines.cheque_id')
+            ->where('payments.direction', $direction)
+            ->whereBetween('payments.date', [$from, $to])
+            ->where(fn ($q) => $q->whereNull('cheques.id')->orWhere('cheques.status', '!=', 'bounced'))
+            ->groupBy('payment_lines.method')
+            ->selectRaw('payment_lines.method AS method, SUM(payment_lines.amount) AS total')
+            ->pluck('total', 'method')->map(fn ($v) => (float) $v);
 
-    public function lowStock()
-    {
-        $products = Product::with(['brand', 'variants.stocks'])->where('is_active', true)->withSum('stocks as on_hand', 'qty')->get()
-            ->map(function ($p) {
-                $p->setAttribute('empty_sizes', $p->variants->filter(fn ($v) => $v->stocks->sum('qty') <= 0)->pluck('size'));
-
-                return $p;
-            })
-            ->filter(fn ($p) => $p->on_hand <= $p->reorder_level || $p->empty_sizes->count())
-            ->sortBy('on_hand');
-
-        return view('reports.low-stock', compact('products'));
-    }
-
-    public function statement(Request $request)
-    {
-        [$from, $to] = $this->range($request, 90);
-        $customer = $request->customer_id ? Customer::find($request->customer_id) : null;
-        $rows = collect();
-        $opening = 0;
-
-        if ($customer) {
-            $before = fn ($q) => $q->where('customer_id', $customer->id)->whereDate('date', '<', $from);
-            $opening = $customer->opening_balance
-                + Invoice::where($before)->sum('total')
-                - CreditNote::where($before)->sum('total')
-                - Payment::where('party_type', 'customer')->where('party_id', $customer->id)->whereDate('date', '<', $from)->sum('total');
-
-            $in = fn ($q) => $q->whereDate('date', '>=', $from)->whereDate('date', '<=', $to);
-            $rows = collect()
-                ->merge(Invoice::where('customer_id', $customer->id)->where($in)->get()->map(fn ($i) => ['date' => $i->date, 'ref' => $i->number, 'desc' => 'Invoice' . ($i->sale_type === 'cash' ? ' (cash)' : '') . ' - due ' . $i->due_date->format('d M'), 'debit' => $i->total, 'credit' => 0, 'url' => route('invoices.show', $i)]))
-                ->merge(CreditNote::where('customer_id', $customer->id)->where($in)->get()->map(fn ($c) => ['date' => $c->date, 'ref' => $c->number, 'desc' => 'Credit note - ' . $c->reason, 'debit' => 0, 'credit' => $c->total, 'url' => route('credit-notes.show', $c)]))
-                ->merge(Payment::with('lines')->where('party_type', 'customer')->where('party_id', $customer->id)->where($in)->get()->map(fn ($p) => ['date' => $p->date, 'ref' => $p->number, 'desc' => 'Payment - ' . $p->methodSummary(), 'debit' => 0, 'credit' => $p->total, 'url' => route('payments.show', $p)]))
-                ->sortBy(fn ($r) => $r['date']->format('Ymd') . ($r['debit'] > 0 ? '0' : '1'))->values();
-        }
-
-        return view('reports.statement', [
-            'customers' => Customer::orderBy('name')->get(),
-            'customer' => $customer,
-            'rows' => $rows,
-            'opening' => $opening,
+        return view('reports.index', [
             'from' => $from,
             'to' => $to,
+            'sales' => $sales,
+            'pairs' => $pairs,
+            'gross' => $sales->amount - $sales->cost,
+            'expenses' => $expenses,
+            'expensesByType' => Expense::with('category')->whereBetween('date', [$from, $to])->selectRaw('expense_category_id, SUM(amount) AS total')
+                ->groupBy('expense_category_id')->get()->sortByDesc('total'),
+            'expensesByMethod' => Expense::whereBetween('date', [$from, $to])->groupBy('method')->selectRaw('method, SUM(amount) AS total')->pluck('total', 'method'),
+            'bought' => $bought,
+            'moneyIn' => $byMethod('in'),
+            'moneyOut' => $byMethod('out'),
+            'customerDue' => Customer::withDue()->get()->sum(fn ($c) => max(0, $c->due)),
+            'supplierDue' => Supplier::withDue()->get()->sum(fn ($s) => max(0, $s->due)),
+            'daily' => Invoice::whereBetween('date', [$from, $to])->selectRaw('date, SUM(total - returned_amount) AS amount, SUM(total - returned_amount - cost_total) AS profit')
+                ->groupBy('date')->orderBy('date')->get(),
         ]);
     }
 
-    public function outstanding()
+    /** Best sellers: pairs and profit per product. */
+    public function products(Request $request)
     {
-        $buckets = ['current' => 'Not due', 'd30' => '1-30 days', 'd60' => '31-60 days', 'd90' => '61-90 days', 'd90p' => '90+ days'];
-        $rows = Invoice::with('customer')->open()->get()->groupBy('customer_id')->map(function ($invoices) use ($buckets) {
-            $row = array_fill_keys(array_keys($buckets), 0) + ['customer' => $invoices->first()->customer, 'total' => 0];
-            foreach ($invoices as $inv) {
-                $days = $inv->daysOverdue();
-                $key = $days <= 0 ? 'current' : ($days <= 30 ? 'd30' : ($days <= 60 ? 'd60' : ($days <= 90 ? 'd90' : 'd90p')));
-                $row[$key] += $inv->balance();
-                $row['total'] += $inv->balance();
+        [$from, $to] = $this->range($request);
+        $rows = DB::table('invoice_items')
+            ->join('invoices', 'invoices.id', '=', 'invoice_items.invoice_id')
+            ->join('products', 'products.id', '=', 'invoice_items.product_id')
+            ->whereBetween('invoices.date', [$from, $to])
+            ->groupBy('products.id', 'products.name', 'products.code', 'products.image_path')
+            ->selectRaw('products.id, products.name, products.code, products.image_path,
+                SUM(invoice_items.qty - invoice_items.returned_qty) AS pairs,
+                SUM((invoice_items.qty - invoice_items.returned_qty) * invoice_items.unit_price) AS amount,
+                SUM((invoice_items.qty - invoice_items.returned_qty) * (invoice_items.unit_price - invoice_items.unit_cost)) AS profit')
+            ->orderByDesc('pairs')
+            ->get();
+
+        $colours = DB::table('invoice_items')
+            ->join('invoices', 'invoices.id', '=', 'invoice_items.invoice_id')
+            ->join('product_colours', 'product_colours.id', '=', 'invoice_items.product_colour_id')
+            ->whereBetween('invoices.date', [$from, $to])
+            ->groupBy('product_colours.colour')
+            ->selectRaw('product_colours.colour, SUM(invoice_items.qty - invoice_items.returned_qty) AS pairs')
+            ->orderByDesc('pairs')->limit(12)->get();
+
+        return view('reports.products', compact('from', 'to', 'rows', 'colours'));
+    }
+
+    /** Stock on hand with value. */
+    public function stock(Request $request)
+    {
+        $products = Product::with(['colours', 'brand'])->where('is_active', true)->orderBy('name')->get()
+            ->when($request->show === 'low', fn ($c) => $c->filter->isLow()->values());
+
+        return view('reports.stock', [
+            'products' => $products,
+            'pairs' => $products->sum(fn ($p) => $p->totalStock()),
+            'costValue' => $products->sum(fn ($p) => max(0, $p->totalStock()) * $p->cost_price),
+            'saleValue' => $products->sum(fn ($p) => max(0, $p->totalStock()) * $p->selling_price),
+        ]);
+    }
+
+    /** Statement of one customer: every bill, payment and return in order with running balance. */
+    public function statement(Customer $customer)
+    {
+        $rows = collect();
+        foreach ($customer->invoices()->with('returns')->get() as $inv) {
+            $rows->push(['date' => $inv->date, 'text' => 'Invoice ' . $inv->number, 'url' => route('invoices.show', $inv), 'debit' => $inv->total, 'credit' => 0]);
+            foreach ($inv->returns as $r) {
+                $rows->push(['date' => $r->date, 'text' => 'Return ' . $r->number, 'url' => route('invoices.show', $inv), 'debit' => 0, 'credit' => $r->total]);
             }
-
-            return $row;
-        })->sortByDesc('total');
-
-        return view('reports.outstanding', compact('rows', 'buckets'));
-    }
-
-    /** Sales, cost and profit per product, net of returns. */
-    public function productProfit(Request $request)
-    {
-        [$from, $to] = $this->range($request);
-        $rows = DB::table('sales_lines')
-            ->join('invoices', fn ($j) => $j->on('invoices.id', '=', 'sales_lines.document_id')->where('sales_lines.document_type', (new Invoice)->getMorphClass()))
-            ->join('products', 'products.id', '=', 'sales_lines.product_id')
-            ->leftJoin('brands', 'brands.id', '=', 'products.brand_id')
-            ->whereDate('invoices.date', '>=', $from)->whereDate('invoices.date', '<=', $to)
-            ->when($request->category_id, fn ($q, $c) => $q->where('products.category_id', $c))
-            ->selectRaw('products.id, products.code, products.name, products.colour, brands.name as brand,
-                SUM(sales_lines.qty - sales_lines.returned_qty) pairs,
-                SUM(sales_lines.line_total * (sales_lines.qty - sales_lines.returned_qty) / sales_lines.qty) sales,
-                SUM(sales_lines.unit_cost * (sales_lines.qty - sales_lines.returned_qty)) cost')
-            ->groupBy('products.id', 'products.code', 'products.name', 'products.colour', 'brands.name')
-            ->orderByDesc('sales')->get()
-            ->map(function ($r) {
-                $r->profit = $r->sales - $r->cost;
-                $r->margin = $r->sales > 0 ? $r->profit / $r->sales * 100 : 0;
-
-                return $r;
-            });
-
-        return view('reports.product-profit', ['rows' => $rows, 'from' => $from, 'to' => $to, 'categories' => Category::orderBy('name')->get()]);
-    }
-
-    public function invoiceProfit(Request $request)
-    {
-        [$from, $to] = $this->range($request);
-        $invoices = Invoice::with('customer')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->latest('date')->get()
-            ->map(function ($i) {
-                $net = $i->total - $i->credited_amount;
-                $i->setAttribute('net', $net);
-                $i->setAttribute('gp', $net - $i->cost_total);
-
-                return $i;
-            });
-        $expenses = Expense::whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->sum('amount');
-
-        return view('reports.invoice-profit', compact('invoices', 'from', 'to', 'expenses'));
-    }
-
-    public function cashFlow(Request $request)
-    {
-        [$from, $to] = $this->range($request);
-        $tx = AccountTransaction::whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->where('type', '!=', 'transfer')->get();
-        $labels = ['receipt' => 'Customer receipts', 'cheque_cleared' => 'Customer cheques cleared', 'payment' => 'Supplier payments', 'cheque_paid' => 'Issued cheques cleared', 'expense' => 'Expenses'];
-
-        $byType = $tx->groupBy('type')->map(fn ($g, $t) => ['label' => $labels[$t] ?? ucfirst($t), 'in' => $g->where('amount', '>', 0)->sum('amount'), 'out' => -$g->where('amount', '<', 0)->sum('amount')]);
-        $byWeek = $tx->groupBy(fn ($t) => $t->date->copy()->startOfWeek()->format('Y-m-d'))->sortKeys()
-            ->map(fn ($g, $w) => ['week' => \Carbon\Carbon::parse($w)->format('d M'), 'in' => $g->where('amount', '>', 0)->sum('amount'), 'out' => -$g->where('amount', '<', 0)->sum('amount')]);
-        $expenses = Expense::with('category')->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)->get()->groupBy(fn ($e) => $e->category->name)->map->sum('amount')->sortDesc();
-
-        return view('reports.cash-flow', compact('byType', 'byWeek', 'expenses', 'from', 'to'));
-    }
-
-    /** Expected incoming (customer dues + cheques to clear) and outgoing (supplier dues + issued cheques). */
-    public function expected(Request $request)
-    {
-        $days = (int) $request->input('days', 30);
-        $until = now()->addDays($days)->endOfDay();
-        $items = collect();
-
-        foreach (Invoice::with('customer')->open()->whereDate('due_date', '<=', $until)->get() as $i) {
-            $items->push(['date' => $i->due_date, 'dir' => 'in', 'what' => 'Invoice ' . $i->number, 'party' => $i->customer->name, 'amount' => $i->balance(), 'overdue' => $i->due_date->isPast(), 'url' => route('invoices.show', $i)]);
         }
-        foreach (Cheque::whereIn('status', ['pending', 'deposited'])->whereDate('cheque_date', '<=', $until)->get() as $c) {
-            $items->push(['date' => $c->cheque_date, 'dir' => $c->direction === 'received' ? 'in' : 'out', 'what' => 'Cheque #' . $c->cheque_no . ' (' . $c->bank . ')', 'party' => $c->party()?->name, 'amount' => $c->amount, 'overdue' => $c->cheque_date->isPast(), 'url' => route('cheques.index', ['direction' => $c->direction])]);
+        foreach (Payment::with('lines')->where('party_type', 'customer')->where('party_id', $customer->id)->get() as $p) {
+            $rows->push(['date' => $p->date, 'text' => 'Payment ' . $p->number . ' (' . $p->methodSummary() . ')', 'url' => route('payments.show', $p), 'debit' => 0, 'credit' => $p->total]);
         }
-        foreach (PurchaseOrder::with('supplier')->whereRaw('payable_amount - paid_amount > 0.009')->whereDate('due_date', '<=', $until)->get() as $po) {
-            $items->push(['date' => $po->due_date, 'dir' => 'out', 'what' => 'Supplier balance ' . $po->number, 'party' => $po->supplier->name, 'amount' => $po->balance(), 'overdue' => $po->due_date->isPast(), 'url' => route('purchase-orders.show', $po)]);
-        }
-        $items = $items->sortBy('date')->values();
+        $rows = $rows->sortBy(fn ($r) => $r['date']->format('Ymd'))->values();
 
-        $weeks = $items->groupBy(fn ($i) => $i['date']->lt(now()->startOfDay()) ? '0000' : $i['date']->copy()->startOfWeek()->format('Y-m-d'))->sortKeys()
-            ->map(fn ($g, $k) => ['label' => $k === '0000' ? 'Overdue / past due' : 'Week of ' . \Carbon\Carbon::parse($k)->format('d M'), 'in' => $g->where('dir', 'in')->sum('amount'), 'out' => $g->where('dir', 'out')->sum('amount')]);
-
-        $cash = \App\Models\Account::where('is_active', true)->get()->sum(fn ($a) => $a->balance());
-
-        return view('reports.expected', compact('items', 'weeks', 'days', 'cash'));
-    }
-
-    public function importCosting()
-    {
-        $orders = PurchaseOrder::with(['supplier', 'charges'])->withSum('items as pairs', 'qty')->where('landed_total', '>', 0)->latest('order_date')->get();
-
-        return view('reports.import-costing', compact('orders'));
+        return view('reports.statement', ['customer' => $customer, 'rows' => $rows]);
     }
 }

@@ -6,42 +6,22 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
 
+/** A sale to a customer. Saving it takes the pairs out of stock. There are no due dates. */
 class Invoice extends Model
 {
     protected $guarded = [];
 
-    protected $casts = ['date' => 'date', 'due_date' => 'date'];
+    protected $casts = ['date' => 'date', 'total' => 'float', 'paid_amount' => 'float', 'returned_amount' => 'float', 'cost_total' => 'float'];
 
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
     }
 
-    public function salesOrder(): BelongsTo
+    public function items(): HasMany
     {
-        return $this->belongsTo(SalesOrder::class);
-    }
-
-    public function warehouse(): BelongsTo
-    {
-        return $this->belongsTo(Warehouse::class);
-    }
-
-    public function lines(): MorphMany
-    {
-        return $this->morphMany(SalesLine::class, 'document');
-    }
-
-    public function deliveryNotes(): HasMany
-    {
-        return $this->hasMany(DeliveryNote::class);
-    }
-
-    public function creditNotes(): HasMany
-    {
-        return $this->hasMany(CreditNote::class);
+        return $this->hasMany(InvoiceItem::class);
     }
 
     public function allocations(): HasMany
@@ -49,56 +29,73 @@ class Invoice extends Model
         return $this->hasMany(PaymentAllocation::class);
     }
 
+    public function returns(): HasMany
+    {
+        return $this->hasMany(GoodsReturn::class);
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function scopeOpen(Builder $q): Builder
+    public function scopeUnpaid(Builder $q): Builder
     {
-        return $q->whereRaw('total - paid_amount - credited_amount > 0.009');
-    }
-
-    public function scopeOverdue(Builder $q): Builder
-    {
-        return $q->open()->whereDate('due_date', '<', now()->toDateString());
+        return $q->whereRaw('total - returned_amount - paid_amount > 0.009');
     }
 
     public function balance(): float
     {
-        return round((float) $this->total - (float) $this->paid_amount - (float) $this->credited_amount, 2);
+        return max(0, round($this->total - $this->returned_amount - $this->paid_amount, 2));
+    }
+
+    public function daysUnpaid(): int
+    {
+        return (int) $this->date->diffInDays(now()->startOfDay());
+    }
+
+    public function refreshPaid(): void
+    {
+        $paid = round((float) $this->allocations()->sum('amount'), 2);
+        $net = $this->total - $this->returned_amount;
+        $this->update([
+            'paid_amount' => $paid,
+            'payment_status' => $net - $paid <= 0.009 ? 'paid' : ($paid > 0 ? 'partial' : 'unpaid'),
+        ]);
     }
 
     public function profit(): float
     {
-        return (float) $this->total - (float) $this->cost_total;
+        return round(($this->total - $this->returned_amount) - $this->cost_total, 2);
     }
 
-    public function daysOverdue(): int
+    public function totalPairs(): int
     {
-        return $this->balance() > 0 && $this->due_date->isPast() ? (int) $this->due_date->diffInDays(now()) : 0;
+        return (int) $this->items->sum('qty');
     }
 
-    /** Recompute paid / credited / status after a receipt, credit note or bounced cheque. */
-    public function refreshPaymentStatus(): void
+    /** Link the customer can open without logging in. */
+    public function shareUrl(): string
     {
-        $paid = (float) $this->allocations()->sum('amount');
-        $credited = (float) $this->creditNotes()->sum('total');
-        $balance = $this->total - $paid - $credited;
-        $this->update([
-            'paid_amount' => $paid,
-            'credited_amount' => $credited,
-            'payment_status' => $balance <= 0.009 ? 'paid' : (($paid + $credited) > 0 ? 'partial' : 'unpaid'),
-        ]);
+        return route('invoice.public', $this->share_token);
     }
 
-    public function refreshDeliveryStatus(): void
+    public function whatsappText(): string
     {
-        $this->load('lines');
-        $ordered = $this->lines->sum('qty');
-        $delivered = $this->lines->sum('delivered_qty');
-        $this->update([
-            'delivery_status' => $delivered <= 0 ? 'pending' : ($delivered >= $ordered ? 'delivered' : 'partial'),
-        ]);
+        $lines = [
+            'Dear ' . $this->customer->name . ',',
+            'Thank you for your order. Invoice ' . $this->number . ' (' . $this->date->format('d M Y') . ')',
+            'Total: ' . money($this->total - $this->returned_amount),
+        ];
+        if ($this->paid_amount > 0) {
+            $lines[] = 'Paid: ' . money($this->paid_amount);
+        }
+        if ($this->balance() > 0) {
+            $lines[] = 'Balance to pay: ' . money($this->balance());
+        }
+        $lines[] = 'View invoice: ' . $this->shareUrl();
+        $lines[] = '- ' . setting('company_name');
+
+        return implode("\n", $lines);
     }
 }

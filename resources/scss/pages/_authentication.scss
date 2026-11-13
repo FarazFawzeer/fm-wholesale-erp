@@ -2,56 +2,186 @@
 // authentication.scss
 //
 
-body {
-     &.authentication-bg {
-          // FM Shoes brand: near-black with a soft red glow
-          background-color: #0d0d0f;
-          background-image:
-               radial-gradient(circle at 15% 20%, rgba(227, 30, 36, 0.28) 0%, transparent 45%),
-               radial-gradient(circle at 85% 85%, rgba(227, 30, 36, 0.18) 0%, transparent 40%),
-               linear-gradient(135deg, #18181b 0%, #0d0d0f 60%, #050505 100%);
-          background-attachment: fixed;
+// FM Shoes sign-in: deep navy brand panel + clean white form, red as accent only
+body.authentication-bg {
+     min-height: 100vh;
+     background-color: #0f172a;
+     background-image:
+          radial-gradient(60% 50% at 0% 0%, rgba(59, 89, 152, 0.35) 0%, transparent 70%),
+          radial-gradient(50% 45% at 100% 100%, rgba(225, 29, 42, 0.14) 0%, transparent 70%),
+          linear-gradient(180deg, #111c33 0%, #0b1220 100%);
+     background-attachment: fixed;
+}
 
-          .card {
-               border-top: 4px solid #e31e24 !important;
-               border-radius: 14px;
-               box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55) !important;
+.auth-shell {
+     min-height: 100vh;
+     min-height: 100dvh;
+}
+
+// ---- right form ----
+.auth-main {
+     display: flex;
+     flex-direction: column;
+     align-items: center;
+     justify-content: center;
+     min-height: 100vh;
+     min-height: 100dvh;
+     padding: 32px 16px 20px;
+}
+
+.auth-form {
+     width: 100%;
+     max-width: 400px;
+     margin: auto 0;
+     padding: 40px 36px 36px;
+     background: #ffffff;
+     border: 0;
+     border-radius: 16px;
+     box-shadow: 0 24px 60px rgba(2, 6, 23, 0.45);
+
+     h2 {
+          font-size: 1.625rem;
+          font-weight: 700;
+          letter-spacing: -0.02em;
+          color: #0f172a;
+          margin-bottom: 6px;
+     }
+
+     .form-label {
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: #344054;
+          margin-bottom: 6px;
+     }
+
+     .form-check-input:checked {
+          background-color: #0f172a;
+          border-color: #0f172a;
+     }
+
+     .form-check-label {
+          color: #475467;
+          font-size: 0.875rem;
+     }
+}
+
+.auth-form-logo {
+     display: block;
+     height: 56px;
+     width: auto;
+     margin: 0 auto 28px;
+}
+
+.auth-form h2,
+.auth-sub { text-align: center; }
+
+.auth-sub {
+     color: #667085;
+     font-size: 0.925rem;
+     margin-bottom: 28px;
+}
+
+.auth-input {
+     position: relative;
+
+     > iconify-icon {
+          position: absolute;
+          left: 14px;
+          top: 50%;
+          transform: translateY(-50%);
+          font-size: 18px;
+          color: #98a2b3;
+          pointer-events: none;
+     }
+
+     .form-control {
+          height: 48px;
+          padding-left: 42px;
+          font-size: 0.95rem;
+          border-radius: 10px;
+          border: 1px solid #d0d5dd;
+          background: #fff;
+          box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+          transition: border-color .15s, box-shadow .15s;
+
+          &::placeholder { color: #98a2b3; }
+
+          &:focus {
+               border-color: #0f172a;
+               box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.08);
           }
 
-          .form-control:focus {
-               border-color: #e31e24;
-               box-shadow: 0 0 0 0.2rem rgba(227, 30, 36, 0.15);
-          }
-
-          .form-check-input:checked {
-               background-color: #e31e24;
-               border-color: #e31e24;
-          }
-
-          .btn-brand {
-               background: #e31e24;
-               border-color: #e31e24;
-               color: #fff;
-
-               &:hover,
-               &:focus {
-                    background: #c4161b;
-                    border-color: #c4161b;
-                    color: #fff;
-               }
-          }
-
-          .auth-footer {
-               color: rgba(255, 255, 255, 0.45);
-               font-size: 0.8rem;
-          }
-
-          .account-pages {
-               align-items: center;
-               display: flex;
-               min-height: 100vh;
+          &.is-invalid {
+               border-color: #e11d2a;
+               background-image: none;
+               &:focus { box-shadow: 0 0 0 4px rgba(225, 29, 42, 0.10); }
           }
      }
+
+     .form-control[name="password"] { padding-right: 46px; }
+}
+
+.auth-eye {
+     position: absolute;
+     right: 6px;
+     top: 50%;
+     transform: translateY(-50%);
+     width: 36px;
+     height: 36px;
+     border: 0;
+     border-radius: 8px;
+     background: transparent;
+     color: #667085;
+     display: inline-flex;
+     align-items: center;
+     justify-content: center;
+     font-size: 18px;
+
+     &:hover { background: #f2f4f7; color: #0f172a; }
+}
+
+.auth-error {
+     margin-top: 6px;
+     font-size: 0.8rem;
+     color: #d92d20;
+}
+
+.btn-auth {
+     height: 48px;
+     border-radius: 10px;
+     font-weight: 600;
+     font-size: 0.95rem;
+     color: #fff;
+     background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+     border: 1px solid #0f172a;
+     box-shadow: 0 1px 2px rgba(16, 24, 40, 0.10), 0 6px 16px rgba(15, 23, 42, 0.25);
+     transition: box-shadow .15s, transform .05s, background .15s;
+
+     iconify-icon { transition: transform .15s; }
+
+     &:hover, &:focus-visible {
+          color: #fff;
+          background: linear-gradient(180deg, #273449 0%, #111c33 100%);
+          border-color: #111c33;
+          box-shadow: 0 1px 2px rgba(16, 24, 40, 0.10), 0 10px 22px rgba(15, 23, 42, 0.32);
+          iconify-icon { transform: translateX(3px); }
+     }
+     &:active { transform: translateY(1px); color: #fff; background: #0b1220; }
+}
+
+.auth-main-foot {
+     margin-top: 32px;
+     font-size: 0.8rem;
+     text-align: center;
+     color: rgba(255, 255, 255, 0.5);
+     letter-spacing: 0.01em;
+
+     b { color: rgba(255, 255, 255, 0.8); font-weight: 600; }
+}
+
+@media (max-width: 575.98px) {
+     .auth-main { padding-top: max(24px, env(safe-area-inset-top)); }
+     .auth-form { padding: 32px 22px 28px; border-radius: 14px; }
 }
 
 .auth-logo {

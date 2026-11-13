@@ -7,8 +7,8 @@
 $prefix: 'taplox-';
 
 // Font Family
-$font-family-primary: "Roboto", sans-serif;
-$font-family-secondary: "Roboto", sans-serif;
+$font-family-primary: "Inter", "Segoe UI", Roboto, sans-serif;
+$font-family-secondary: "Inter", "Segoe UI", Roboto, sans-serif;
 
 // custom variable
 $logo-lg-height: var(--#{$prefix}logo-lg-height);
@@ -70,7 +70,7 @@ $cyan: #63b7e6;
 // scss-docs-end color-variables
 
 // scss-docs-start theme-color-variables
-$primary: $blue;
+$primary: #111827;
 $secondary: $gray-600;
 $blue: $blue;
 $indigo: $indigo;
@@ -467,7 +467,7 @@ $position-values: (
 // Body
 //
 
-$body-bg: #f8f7fa;
+$body-bg: #f5f6f8;
 $body-color: #5d7186;
 $body-text-align: null;
 
@@ -487,7 +487,7 @@ $body-emphasis-color: rgba($body-color, .75);
 //
 // Style anchor elements.
 
-$link-color: $gray-500;
+$link-color: #111827;
 $link-decoration: none;
 $link-shade-percentage: 15%;
 $link-hover-color: shade-color($primary, $link-shade-percentage);
@@ -584,9 +584,9 @@ $border-color-translucent: rgba($black, .175);
 // scss-docs-end border-variables
 
 // scss-docs-start border-radius-variables
-$border-radius: .35rem;
-$border-radius-sm: .25rem;
-$border-radius-lg: .5rem;
+$border-radius: .625rem;
+$border-radius-sm: .5rem;
+$border-radius-lg: .875rem;
 $border-radius-xl: 1rem;
 $border-radius-xxl: 2rem;
 $border-radius-pill: 50rem;

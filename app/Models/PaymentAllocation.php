@@ -9,6 +9,8 @@ class PaymentAllocation extends Model
 {
     protected $guarded = [];
 
+    protected $casts = ['amount' => 'float'];
+
     public function payment(): BelongsTo
     {
         return $this->belongsTo(Payment::class);
@@ -19,8 +21,13 @@ class PaymentAllocation extends Model
         return $this->belongsTo(Invoice::class);
     }
 
-    public function purchaseOrder(): BelongsTo
+    public function purchase(): BelongsTo
     {
-        return $this->belongsTo(PurchaseOrder::class);
+        return $this->belongsTo(Purchase::class);
+    }
+
+    public function label(): string
+    {
+        return $this->invoice?->number ?? $this->purchase?->number ?? 'Old balance';
     }
 }

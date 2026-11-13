@@ -9,8 +9,6 @@ class Category extends Model
 {
     protected $guarded = [];
 
-    protected $casts = ['markup_percent' => 'float'];
-
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);

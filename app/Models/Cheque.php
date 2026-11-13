@@ -16,23 +16,13 @@ class Cheque extends Model
         return $this->belongsTo(Payment::class);
     }
 
-    public function account(): BelongsTo
-    {
-        return $this->belongsTo(Account::class);
-    }
-
     public function party(): ?Model
     {
         return $this->party_type === 'customer' ? Customer::find($this->party_id) : Supplier::find($this->party_id);
     }
 
-    public function isOpen(): bool
+    public function isPending(): bool
     {
-        return in_array($this->status, ['pending', 'deposited']);
-    }
-
-    public function isPostDated(): bool
-    {
-        return $this->isOpen() && $this->cheque_date->isFuture();
+        return $this->status === 'pending';
     }
 }

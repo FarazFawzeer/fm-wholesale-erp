@@ -49,6 +49,8 @@
           if (window.innerWidth <= 1140) {
                html.setAttribute("data-sidebar-size", "hidden");
           } else {
+               // a phone-size visit must not leave the menu hidden on a big screen
+               if (config.menu.size === "hidden") config.menu.size = "default";
                html.setAttribute("data-sidebar-size", config.menu.size);
           }
      }

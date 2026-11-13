@@ -1,133 +1,114 @@
 <?php
 
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\Finance\AccountController;
-use App\Http\Controllers\Finance\ChequeController;
-use App\Http\Controllers\Finance\CreditControlController;
-use App\Http\Controllers\Finance\ExpenseController;
-use App\Http\Controllers\Finance\PaymentController;
-use App\Http\Controllers\Inventory\StockAdjustmentController;
-use App\Http\Controllers\Inventory\StockController;
-use App\Http\Controllers\Inventory\StockTransferController;
-use App\Http\Controllers\Masters\CustomerController;
-use App\Http\Controllers\Masters\CustomerGroupController;
-use App\Http\Controllers\Masters\ProductController;
-use App\Http\Controllers\Masters\SetupController;
-use App\Http\Controllers\Masters\SupplierController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\MoneyController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Purchasing\GrnController;
-use App\Http\Controllers\Purchasing\PurchaseOrderController;
+use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\ReportController;
-use App\Http\Controllers\Sales\CreditNoteController;
-use App\Http\Controllers\Sales\DeliveryNoteController;
-use App\Http\Controllers\Sales\InvoiceController;
-use App\Http\Controllers\Sales\SalesOrderController;
+use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\SupplierController;
+use App\Models\Product;
 use Illuminate\Support\Facades\Route;
 
-// Guest auth routes (login, logout, password reset)
+// Login / logout
 require __DIR__ . '/auth.php';
+
+// Phone app (Add to Home Screen) - the manifest uses the business name from Settings
+Route::get('manifest.webmanifest', function () {
+    $name = setting('company_name', 'FM Shoes');
+
+    return response()->json([
+        'name' => $name,
+        'short_name' => \Illuminate\Support\Str::limit($name, 12, ''),
+        'description' => 'Buy, sell, stock and dues for ' . $name,
+        'id' => '/',
+        'start_url' => url('/') . '/?source=app',
+        'scope' => url('/') . '/',
+        'display' => 'standalone',
+        'orientation' => 'any',
+        'background_color' => '#f5f6f8',
+        'theme_color' => '#ffffff',
+        'icons' => [
+            ['src' => asset('images/app/icon-192.png'), 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
+            ['src' => asset('images/app/icon-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
+            ['src' => asset('images/app/maskable-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable'],
+        ],
+        'shortcuts' => [
+            ['name' => 'Sell', 'url' => url('invoices/create'), 'icons' => [['src' => asset('images/app/icon-192.png'), 'sizes' => '192x192']]],
+            ['name' => 'Check price & stock', 'url' => url('products'), 'icons' => [['src' => asset('images/app/icon-192.png'), 'sizes' => '192x192']]],
+            ['name' => 'Dues', 'url' => url('dues'), 'icons' => [['src' => asset('images/app/icon-192.png'), 'sizes' => '192x192']]],
+        ],
+    ], 200, ['Content-Type' => 'application/manifest+json', 'Cache-Control' => 'public, max-age=3600'], JSON_UNESCAPED_SLASHES);
+})->name('manifest');
+
+// Invoice link sent to customers (WhatsApp) - opens without logging in
+Route::get('i/{token}', [InvoiceController::class, 'publicShow'])->where('token', '[A-Za-z0-9]{32}')->middleware('throttle:60,1')->name('invoice.public');
 
 Route::middleware('auth')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('root');
 
-    // ---- Masters ----
-    Route::get('products/next-code', [ProductController::class, 'nextCodeJson'])->name('products.next-code');
+    // ---- Products ----
+    Route::get('products/next-code', fn () => response()->json(['code' => Product::nextCode()]))->name('products.next-code');
+    Route::get('products/lookup', [ProductController::class, 'lookup'])->name('products.lookup');
     Route::post('products/quick', [ProductController::class, 'quickStore'])->name('products.quick');
-    Route::post('customers/quick', [CustomerController::class, 'quickStore'])->name('customers.quick');
-    Route::post('suppliers/quick', [SupplierController::class, 'quickStore'])->name('suppliers.quick');
-    Route::get('products/import', [ProductController::class, 'importForm'])->name('products.import');
-    Route::post('products/import', [ProductController::class, 'import'])->name('products.import.store');
-    Route::get('products/template', [ProductController::class, 'template'])->name('products.template');
-    Route::get('products/bulk-price', [ProductController::class, 'bulkPriceForm'])->name('products.bulk-price');
-    Route::post('products/bulk-price', [ProductController::class, 'bulkPrice'])->name('products.bulk-price.store');
+    Route::post('products/{product}/correct', [ProductController::class, 'correctStock'])->name('products.correct');
     Route::resource('products', ProductController::class);
-    Route::resource('suppliers', SupplierController::class)->except('destroy');
-    Route::resource('customers', CustomerController::class)->except('destroy');
-    Route::get('customer-groups', [CustomerGroupController::class, 'index'])->name('customer-groups.index');
-    Route::post('customer-groups', [CustomerGroupController::class, 'store'])->name('customer-groups.store');
-    Route::put('customer-groups/{customerGroup}', [CustomerGroupController::class, 'update'])->name('customer-groups.update');
-    Route::get('customer-groups/{customerGroup}/prices', [CustomerGroupController::class, 'prices'])->name('customer-groups.prices');
-    Route::post('customer-groups/{customerGroup}/prices', [CustomerGroupController::class, 'savePrices'])->name('customer-groups.prices.save');
-    Route::get('setup', [SetupController::class, 'index'])->name('setup.index');
-    Route::post('setup/{type}', [SetupController::class, 'store'])->name('setup.store');
-    Route::put('setup/{type}/{id}', [SetupController::class, 'update'])->name('setup.update');
-    Route::delete('setup/{type}/{id}', [SetupController::class, 'destroy'])->name('setup.destroy');
 
-    // ---- Purchasing & import ----
-    Route::resource('purchase-orders', PurchaseOrderController::class)->except('destroy');
-    Route::post('purchase-orders/{purchase_order}/status', [PurchaseOrderController::class, 'status'])->name('purchase-orders.status');
-    Route::get('purchase-orders/{purchase_order}/costing', [PurchaseOrderController::class, 'costing'])->name('purchase-orders.costing');
-    Route::post('purchase-orders/{purchase_order}/costing', [PurchaseOrderController::class, 'saveCosting'])->name('purchase-orders.costing.save');
-    Route::post('purchase-orders/{purchase_order}/receive', [GrnController::class, 'store'])->name('grns.store');
-    Route::get('grns', [GrnController::class, 'index'])->name('grns.index');
-    Route::get('grns/{grn}', [GrnController::class, 'show'])->name('grns.show');
-    Route::get('grns/{grn}/edit', [GrnController::class, 'edit'])->name('grns.edit');
-    Route::put('grns/{grn}', [GrnController::class, 'update'])->name('grns.update');
+    // ---- People ----
+    Route::post('customers/quick', [CustomerController::class, 'quickStore'])->name('customers.quick');
+    Route::get('customers/{customer}/statement', [ReportController::class, 'statement'])->name('customers.statement');
+    Route::resource('customers', CustomerController::class);
+    Route::post('suppliers/quick', [SupplierController::class, 'quickStore'])->name('suppliers.quick');
+    Route::resource('suppliers', SupplierController::class);
 
-    // ---- Inventory ----
-    Route::get('stock', [StockController::class, 'index'])->name('stock.index');
-    Route::get('stock/movements', [StockController::class, 'movements'])->name('stock.movements');
-    Route::resource('stock-transfers', StockTransferController::class)->only(['index', 'create', 'store', 'show']);
-    Route::resource('stock-adjustments', StockAdjustmentController::class)->only(['index', 'create', 'store', 'show']);
+    // ---- Buy ----
+    Route::resource('purchases', PurchaseController::class)->only(['index', 'create', 'store', 'show']);
 
-    // ---- Sales ----
-    Route::get('quotations', [SalesOrderController::class, 'index'])->defaults('type', 'quotation')->name('quotations.index');
-    Route::get('quotations/create', [SalesOrderController::class, 'create'])->defaults('type', 'quotation')->name('quotations.create');
-    Route::get('pre-orders', [SalesOrderController::class, 'index'])->defaults('type', 'order')->name('pre-orders.index');
-    Route::get('pre-orders/create', [SalesOrderController::class, 'create'])->defaults('type', 'order')->name('pre-orders.create');
-    Route::post('sales-docs', [SalesOrderController::class, 'store'])->name('sales-docs.store');
-    Route::get('sales-docs/{salesOrder}', [SalesOrderController::class, 'show'])->name('sales-docs.show');
-    Route::get('sales-docs/{salesOrder}/edit', [SalesOrderController::class, 'edit'])->name('sales-docs.edit');
-    Route::put('sales-docs/{salesOrder}', [SalesOrderController::class, 'update'])->name('sales-docs.update');
-    Route::post('sales-docs/{salesOrder}/status', [SalesOrderController::class, 'status'])->name('sales-docs.status');
-    Route::post('sales-docs/{salesOrder}/convert', [SalesOrderController::class, 'convert'])->name('sales-docs.convert');
-
+    // ---- Sell ----
     Route::resource('invoices', InvoiceController::class)->only(['index', 'create', 'store', 'show']);
     Route::get('invoices/{invoice}/print', [InvoiceController::class, 'print'])->name('invoices.print');
-    Route::get('invoices/{invoice}/deliver', [DeliveryNoteController::class, 'create'])->name('deliveries.create');
-    Route::post('invoices/{invoice}/deliver', [DeliveryNoteController::class, 'store'])->name('deliveries.store');
-    Route::get('deliveries', [DeliveryNoteController::class, 'index'])->name('deliveries.index');
-    Route::get('deliveries/{deliveryNote}', [DeliveryNoteController::class, 'show'])->name('deliveries.show');
-    Route::get('invoices/{invoice}/return', [CreditNoteController::class, 'create'])->name('credit-notes.create');
-    Route::post('invoices/{invoice}/return', [CreditNoteController::class, 'store'])->name('credit-notes.store');
-    Route::get('credit-notes', [CreditNoteController::class, 'index'])->name('credit-notes.index');
-    Route::get('credit-notes/{creditNote}', [CreditNoteController::class, 'show'])->name('credit-notes.show');
 
-    // ---- Finance ----
-    Route::get('receipts', [PaymentController::class, 'index'])->defaults('direction', 'in')->name('receipts.index');
-    Route::get('receipts/create', [PaymentController::class, 'create'])->defaults('direction', 'in')->name('receipts.create');
-    Route::get('supplier-payments', [PaymentController::class, 'index'])->defaults('direction', 'out')->name('supplier-payments.index');
-    Route::get('supplier-payments/create', [PaymentController::class, 'create'])->defaults('direction', 'out')->name('supplier-payments.create');
+    // ---- Returns (from customers / to suppliers) ----
+    Route::get('returns', [ReturnController::class, 'index'])->name('returns.index');
+    Route::get('returns/new', [ReturnController::class, 'create'])->name('returns.create');
+    Route::post('returns/pick', [ReturnController::class, 'pick'])->name('returns.pick');
+    Route::get('returns/customer/{invoice}', [ReturnController::class, 'customerForm'])->name('returns.customer');
+    Route::post('returns/customer/{invoice}', [ReturnController::class, 'customerStore'])->name('returns.customer.store');
+    Route::get('returns/supplier/{purchase}', [ReturnController::class, 'supplierForm'])->name('returns.supplier');
+    Route::post('returns/supplier/{purchase}', [ReturnController::class, 'supplierStore'])->name('returns.supplier.store');
+    Route::get('returns/{return}', [ReturnController::class, 'show'])->name('returns.show');
+    Route::get('returns/{return}/print', [ReturnController::class, 'print'])->name('returns.print');
+
+    // ---- Money ----
+    Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
+    Route::get('payments/receive', [PaymentController::class, 'receive'])->name('payments.receive');
+    Route::get('payments/pay', [PaymentController::class, 'pay'])->name('payments.pay');
     Route::post('payments', [PaymentController::class, 'store'])->name('payments.store');
     Route::get('payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
-    Route::get('cheques', [ChequeController::class, 'index'])->name('cheques.index');
-    Route::post('cheques/{cheque}/status', [ChequeController::class, 'status'])->name('cheques.status');
-    Route::get('accounts', [AccountController::class, 'index'])->name('accounts.index');
-    Route::post('accounts', [AccountController::class, 'store'])->name('accounts.store');
-    Route::post('accounts/transfer', [AccountController::class, 'transfer'])->name('accounts.transfer');
-    Route::get('accounts/{account}', [AccountController::class, 'show'])->name('accounts.show');
-    Route::get('cashbook', [AccountController::class, 'cashbook'])->name('cashbook');
-    Route::resource('expenses', ExpenseController::class)->only(['index', 'create', 'store']);
-    Route::get('credit-control', [CreditControlController::class, 'index'])->name('credit-control.index');
-    Route::get('payables', [CreditControlController::class, 'payables'])->name('credit-control.payables');
+    Route::get('dues', [MoneyController::class, 'dues'])->name('dues');
+    Route::get('cheques', [MoneyController::class, 'cheques'])->name('cheques');
+    Route::post('cheques/{cheque}/status', [MoneyController::class, 'chequeStatus'])->name('cheques.status');
+    Route::get('expenses', [MoneyController::class, 'expenses'])->name('expenses.index');
+    Route::post('expenses', [MoneyController::class, 'storeExpense'])->name('expenses.store');
+    Route::delete('expenses/{expense}', [MoneyController::class, 'destroyExpense'])->name('expenses.destroy');
 
     // ---- Reports ----
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
-    Route::get('reports/stock-valuation', [ReportController::class, 'stockValuation'])->name('reports.stock-valuation');
-    Route::get('reports/low-stock', [ReportController::class, 'lowStock'])->name('reports.low-stock');
-    Route::get('reports/customer-statement', [ReportController::class, 'statement'])->name('reports.statement');
-    Route::get('reports/outstanding', [ReportController::class, 'outstanding'])->name('reports.outstanding');
-    Route::get('reports/product-profit', [ReportController::class, 'productProfit'])->name('reports.product-profit');
-    Route::get('reports/invoice-profit', [ReportController::class, 'invoiceProfit'])->name('reports.invoice-profit');
-    Route::get('reports/cash-flow', [ReportController::class, 'cashFlow'])->name('reports.cash-flow');
-    Route::get('reports/expected', [ReportController::class, 'expected'])->name('reports.expected');
-    Route::get('reports/import-costing', [ReportController::class, 'importCosting'])->name('reports.import-costing');
+    Route::get('reports/best-sellers', [ReportController::class, 'products'])->name('reports.products');
+    Route::get('reports/stock', [ReportController::class, 'stock'])->name('reports.stock');
 
-    // ---- Admin ----
+    // ---- Settings ----
     Route::get('settings', [SettingController::class, 'edit'])->name('settings.edit');
     Route::post('settings', [SettingController::class, 'update'])->name('settings.update');
+    Route::post('settings/{type}', [SettingController::class, 'storeItem'])->name('settings.items.store');
+    Route::put('settings/{type}/{id}', [SettingController::class, 'updateItem'])->name('settings.items.update');
+    Route::delete('settings/{type}/{id}', [SettingController::class, 'destroyItem'])->name('settings.items.destroy');
     Route::resource('users', UserController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::get('/profile', [ProfileController::class, 'edit'])->name('admin.profile.edit');
     Route::post('/profile', [ProfileController::class, 'update'])->name('admin.profile.update');

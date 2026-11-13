@@ -5,7 +5,7 @@
                 <p class="mb-0">
                     <script>
                         document.write(new Date().getFullYear())
-                    </script> &copy; FM Wholesale ERP
+                    </script> &copy; {{ setting('company_name', 'FM Shoes') }}
                 </p>
             </div>
         </div>

@@ -9,16 +9,11 @@ class Expense extends Model
 {
     protected $guarded = [];
 
-    protected $casts = ['date' => 'date'];
+    protected $casts = ['date' => 'date', 'amount' => 'float'];
 
     public function category(): BelongsTo
     {
         return $this->belongsTo(ExpenseCategory::class, 'expense_category_id');
-    }
-
-    public function account(): BelongsTo
-    {
-        return $this->belongsTo(Account::class);
     }
 
     public function user(): BelongsTo
