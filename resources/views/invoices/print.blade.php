@@ -2,11 +2,12 @@
     $c = $invoice->customer;
     $balance = $invoice->balance();
     $net = $invoice->total - $invoice->returned_amount;
-    $share = $public ? null : 'https://wa.me/' . ($c->whatsappNumber() ?? '') . '?text=' . rawurlencode($invoice->whatsappText());
-    $terms = collect(preg_split('/\r\n|\r|\n/', (string) setting('invoice_terms')))->map(fn ($t) => trim(preg_replace('/^\s*\d+[\.\)]\s*/', '', $t)))->filter();
+    $share = $public ? null : 'https://wa.me/' . ($c->whatsappNumber() ?? '');
+    $pdf = $public ? route('invoice.public.pdf', $invoice->share_token) : route('invoices.pdf', $invoice);
+    $terms = collect(terms_list());
     $status = $balance <= 0 ? 'Paid' : ($invoice->paid_amount > 0 ? 'Part paid' : 'Not paid');
 @endphp
-<x-print-doc title="Invoice {{ $invoice->number }}" :back="route('invoices.show', $invoice)" :public="$public" :share="$share">
+<x-print-doc title="Invoice {{ $invoice->number }}" :back="route('invoices.show', $invoice)" :public="$public" :share="$share" :pdf="$pdf" :pdf-name="'Invoice-' . $invoice->number . '.pdf'">
     <div class="top">
         <div class="logo"><img src="{{ asset('images/logo-dark.png') }}" alt="{{ setting('company_name') }}"></div>
         <div class="title">
@@ -49,8 +50,8 @@
                     <td class="n">{{ $loop->iteration }}</td>
                     <td>
                         <div class="nm">{{ $p->name }}</div>
-                        <div class="sub"><b>Item No:</b> <span class="mono">{{ $p->code }}</span>@if ($p->sizeLabel()) &nbsp;·&nbsp; <b>Size:</b> {{ $p->sizeLabel() }}@endif</div>
-                        <div class="cols">{{ $items->map(fn ($it) => $it->colour->colour . ' ' . $it->qty)->implode(', ') }}</div>
+                        <div class="sub"><b>Item No:</b> <span class="mono">{{ $p->code }}</span>@if ($p->sizeLabel() && ! $items->contains(fn ($it) => $it->colour->size)) &nbsp;·&nbsp; <b>Size:</b> {{ $p->sizeLabel() }}@endif</div>
+                        <div class="cols">{{ $items->map(fn ($it) => $it->colour->title . ' × ' . $it->qty)->implode(', ') }}</div>
                     </td>
                     <td class="r m first" data-label="Pairs">{{ $items->sum('qty') }}</td>
                     <td class="r nowrap m" data-label="Rate">{{ money($items->first()->unit_price, false) }}</td>

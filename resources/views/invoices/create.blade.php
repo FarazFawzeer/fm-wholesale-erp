@@ -86,7 +86,7 @@
                         <div class="pos-grand"><span>Total</span><span class="money">Rs <span class="js-total">0.00</span></span></div>
                     </div>
 
-                    @include('partials.payment-box', ['startEmpty' => '1', 'title' => 'Payment', 'balanceLabel' => 'Customer will owe'])
+                    @include('partials.payment-box', ['startEmpty' => '1', 'payLater' => true, 'title' => 'Payment', 'balanceLabel' => 'Customer will owe'])
 
                     <details class="pos-more">
                         <summary>Date & note</summary>

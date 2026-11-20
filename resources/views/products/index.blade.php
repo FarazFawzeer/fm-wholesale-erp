@@ -65,7 +65,7 @@
                         </div>
                         <div class="product-name mt-1">{{ $p->name }}</div>
                         <div class="colour-list my-2">
-                            @foreach ($p->colours as $c)<x-colour-chip :name="$c->colour" :qty="$c->qty" />@endforeach
+                            @foreach ($p->colours as $c)<x-colour-chip :name="$c->title" :qty="$c->qty" />@endforeach
                         </div>
                         <div class="d-flex justify-content-between align-items-end">
                             <span class="product-price">{{ money($p->selling_price) }}</span>
@@ -94,7 +94,7 @@
                                         </a>
                                     </td>
                                     <td class="text-nowrap">{{ $p->sizeLabel() ?: '-' }}</td>
-                                    <td><div class="colour-list">@foreach ($p->colours as $c)<x-colour-chip :name="$c->colour" :qty="$c->qty" />@endforeach</div></td>
+                                    <td><div class="colour-list">@foreach ($p->colours as $c)<x-colour-chip :name="$c->title" :qty="$c->qty" />@endforeach</div></td>
                                     <td class="text-end text-nowrap fw-semibold">{{ money($p->selling_price) }}</td>
                                     <td class="text-end"><span class="stock-pill inline st-{{ $st }}">{{ qty($p->totalStock()) }} pairs</span></td>
                                     <td class="td-actions text-end"><a href="{{ route('invoices.create', ['product' => $p->id]) }}" class="btn btn-sm btn-light {{ $p->totalStock() <= 0 ? 'disabled' : '' }}">Sell</a></td>
@@ -124,7 +124,7 @@
                         </div>
                         @if ($p->colours->count())
                             <div class="plist-colours">
-                                @foreach ($p->colours as $c)<span class="{{ $c->qty <= 0 ? 'zero' : '' }}"><i style="background: {{ \App\Models\ProductColour::hex($c->colour) }}"></i>{{ $c->colour }} <b>{{ $c->qty }}</b></span>@endforeach
+                                @foreach ($p->colours as $c)<span class="{{ $c->qty <= 0 ? 'zero' : '' }}"><i style="background: {{ \App\Models\ProductColour::hex($c->colour) }}"></i>{{ $c->title }} <b>{{ $c->qty }}</b></span>@endforeach
                             </div>
                         @endif
                     </div>

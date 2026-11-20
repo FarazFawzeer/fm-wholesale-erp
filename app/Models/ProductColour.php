@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/** One colour of a product, with its stock in pairs. */
+/** One colour (+ optional size range) of a product, with its stock in pairs. */
 class ProductColour extends Model
 {
     protected $guarded = [];
@@ -27,7 +27,21 @@ class ProductColour extends Model
 
     public function label(): string
     {
-        return $this->product->name . ' - ' . $this->colour;
+        return $this->product->name . ' - ' . $this->title;
+    }
+
+    /** "Black" or, when the line has a size range, "Black (5-7)". */
+    public function getTitleAttribute(): string
+    {
+        return $this->colour . (filled($this->size) ? ' (' . $this->size . ')' : '');
+    }
+
+    /** Tidy a typed size range: "5 - 7" -> "5-7", "11 to 1" -> "11-1". */
+    public static function cleanSize(?string $size): ?string
+    {
+        $size = trim(preg_replace('/\s*(?:-|–|to)\s*/iu', '-', trim((string) $size)));
+
+        return $size === '' ? null : mb_substr($size, 0, 20);
     }
 
     /** A colour dot for common colour names; grey for anything unknown. */

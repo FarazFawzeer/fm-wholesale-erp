@@ -60,11 +60,11 @@
                     <div class="colour-stock">
                         @forelse ($product->colours as $c)
                             <div class="cs-row {{ $c->qty <= 0 ? 'empty' : '' }}">
-                                <span class="cs-name"><span class="dot" style="background: {{ \App\Models\ProductColour::hex($c->colour) }}"></span>{{ $c->colour }}</span>
+                                <span class="cs-name"><span class="dot" style="background: {{ \App\Models\ProductColour::hex($c->colour) }}"></span>{{ $c->title }}</span>
                                 <span class="cs-bar"><span style="width: {{ round(max(0, $c->qty) / $maxColour * 100) }}%"></span></span>
                                 <b class="cs-qty">{{ qty($c->qty) }}</b>
                                 <button type="button" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#correct-stock"
-                                    data-colour-id="{{ $c->id }}" data-colour-name="{{ $c->colour }}" data-colour-qty="{{ $c->qty }}" title="Correct stock">Correct</button>
+                                    data-colour-id="{{ $c->id }}" data-colour-name="{{ $c->title }}" data-colour-qty="{{ $c->qty }}" title="Correct stock">Correct</button>
                             </div>
                         @empty
                             <div class="text-muted small">No colours yet. <a href="{{ route('products.edit', $product) }}">Add colours</a> or record a purchase.</div>
@@ -145,7 +145,7 @@
                                     @forelse ($movements as $m)
                                         <tr>
                                             <td class="td-title">{{ $m->date->format('d M Y') }}</td>
-                                            <td data-label="Colour"><x-colour-chip :name="$m->colour->colour" /></td>
+                                            <td data-label="Colour"><x-colour-chip :name="$m->colour->title" /></td>
                                             <td data-label="What">
                                                 {{ $m->typeLabel() }}
                                                 @if ($m->reference_no)

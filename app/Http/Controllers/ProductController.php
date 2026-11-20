@@ -132,7 +132,7 @@ class ProductController extends Controller
                 'invoice' => $rows->first()->invoice,
                 'pairs' => $rows->sum(fn ($r) => $r->qty - $r->returned_qty),
                 'price' => (float) $rows->first()->unit_price,
-                'colours' => $rows->map(fn ($r) => ['name' => $r->colour->colour, 'qty' => $r->qty])->all(),
+                'colours' => $rows->map(fn ($r) => ['name' => $r->colour->title, 'qty' => $r->qty])->all(),
             ])->sortByDesc(fn ($r) => $r['invoice']->date->format('Ymd') . str_pad($r['invoice']->id, 8, '0', STR_PAD_LEFT))->values();
 
         $purchases = \App\Models\PurchaseItem::with(['purchase.supplier', 'colour'])->where('product_id', $product->id)
@@ -141,7 +141,7 @@ class ProductController extends Controller
                 'pairs' => $rows->sum('qty'),
                 'price' => (float) $rows->first()->unit_price,
                 'cost' => (float) $rows->first()->unit_cost,
-                'colours' => $rows->map(fn ($r) => ['name' => $r->colour->colour, 'qty' => $r->qty])->all(),
+                'colours' => $rows->map(fn ($r) => ['name' => $r->colour->title, 'qty' => $r->qty])->all(),
             ])->sortByDesc(fn ($r) => $r['purchase']->date->format('Ymd') . str_pad($r['purchase']->id, 8, '0', STR_PAD_LEFT))->values();
 
         return view('products.show', [
@@ -211,7 +211,7 @@ class ProductController extends Controller
         }
         DB::transaction(fn () => StockService::move($colour->id, $diff, 'correction', (float) $product->cost_price, null, $data['reason']));
 
-        return back()->with('success', "{$colour->colour}: stock changed by " . ($diff > 0 ? '+' : '') . "$diff to {$data['counted']} pairs.");
+        return back()->with('success', "{$colour->title}: stock changed by " . ($diff > 0 ? '+' : '') . "$diff to {$data['counted']} pairs.");
     }
 
     protected function validated(Request $request, ?Product $product = null): array
@@ -231,6 +231,7 @@ class ProductController extends Controller
             'photo' => 'nullable|image|max:8192',
             'colours' => 'array',
             'colours.*.name' => 'nullable|max:40',
+            'colours.*.size' => 'nullable|max:20',
             'colours.*.qty' => 'nullable|integer|min:0',
             'opening_cost' => 'nullable|numeric|min:0',
         ], ['code.unique' => 'This item no is already used by another product.'], ['code' => 'item no', 'photo' => 'photo', 'colours.*.name' => 'colour name']);
@@ -248,11 +249,12 @@ class ProductController extends Controller
         return collect($data)->except(['new_brand', 'new_category', 'photo', 'colours', 'opening_cost'])->all();
     }
 
-    /** Colours: rename existing ones, add new ones with optional opening stock. */
+    /** Colour lines (colour + size range): edit existing ones, add new ones with optional opening stock. */
     protected function saveColours(Request $request, Product $product, float $openingCost): void
     {
         foreach ($request->input('colours', []) as $row) {
             $name = ucwords(trim(preg_replace('/\s+/', ' ', (string) ($row['name'] ?? ''))));
+            $size = ProductColour::cleanSize($row['size'] ?? null);
             $id = $row['id'] ?? null;
             if ($id) {
                 $colour = $product->colours()->find($id);
@@ -262,15 +264,20 @@ class ProductController extends Controller
                 if (! empty($row['delete']) && $colour->qty == 0 && ! $colour->movements()->whereNot('type', 'opening')->exists()) {
                     $colour->movements()->delete();
                     $colour->delete();
-                } elseif ($name !== '' && $name !== $colour->colour) {
-                    $colour->update(['colour' => $name]);
+                } elseif ($name !== '' && ($name !== $colour->colour || $size !== $colour->size)) {
+                    $taken = $product->colours()->whereKeyNot($colour->id)->where('colour', $name)
+                        ->when($size, fn ($q) => $q->where('size', $size), fn ($q) => $q->whereNull('size'))->exists();
+                    if ($taken) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['colours' => "{$name}" . ($size ? " ({$size})" : '') . ' is already on this product.']);
+                    }
+                    $colour->update(['colour' => $name, 'size' => $size]);
                 }
                 continue;
             }
             if ($name === '') {
                 continue;
             }
-            $colour = StockService::colour($product, $name);
+            $colour = StockService::colour($product, $name, $size);
             $qty = (int) ($row['qty'] ?? 0);
             if ($qty > 0) {
                 StockService::receive($colour->id, $qty, $openingCost, null, 'Opening stock', null, 'opening');

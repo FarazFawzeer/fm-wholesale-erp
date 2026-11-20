@@ -2,7 +2,8 @@
 
 @php
     $wa = $invoice->customer->whatsappNumber();
-    $waLink = 'https://wa.me/' . ($wa ?? '') . '?text=' . rawurlencode($invoice->whatsappText());
+    $waLink = 'https://wa.me/' . ($wa ?? '');
+    $pdfName = 'Invoice-' . $invoice->number . '.pdf';
     $net = $invoice->total - $invoice->returned_amount;
     $balance = $invoice->balance();
     $c = $invoice->customer;
@@ -10,6 +11,9 @@
 
 @section('content')
     <x-page-header :title="'Invoice ' . $invoice->number" :crumbs="['Sales' => route('invoices.index'), $invoice->number]">
+        @if ($balance > 0)
+            <a href="{{ route('payments.receive', ['customer' => $invoice->customer_id, 'invoice' => $invoice->id]) }}" class="btn btn-success"><iconify-icon icon="solar:wallet-money-outline" class="align-middle me-1"></iconify-icon>Receive payment</a>
+        @endif
         <a href="{{ route('invoices.print', $invoice) }}" class="btn btn-dark"><iconify-icon icon="solar:document-text-outline" class="align-middle me-1"></iconify-icon>View invoice</a>
         <a href="{{ route('invoices.create') }}" class="btn btn-light d-none d-sm-inline-block"><iconify-icon icon="solar:add-circle-outline" class="align-middle me-1"></iconify-icon>New sale</a>
     </x-page-header>
@@ -43,7 +47,7 @@
                         <div class="fw-bold">Not paid yet ({{ $invoice->daysUnpaid() === 0 ? 'today' : $invoice->daysUnpaid() . ' ' . Str::plural('day', $invoice->daysUnpaid()) }})</div>
                         @if ($customerDue - $balance > 0.009)<div class="small">Total owed with older bills: <b>{{ money($customerDue) }}</b></div>@endif
                     </div>
-                    <a href="{{ route('payments.receive', ['customer' => $invoice->customer_id, 'invoice' => $invoice->id]) }}" class="btn btn-light btn-sm fw-semibold"><iconify-icon icon="solar:wallet-money-outline" class="align-middle me-1"></iconify-icon>Get paid</a>
+                    <a href="{{ route('payments.receive', ['customer' => $invoice->customer_id, 'invoice' => $invoice->id]) }}" class="btn btn-light btn-sm fw-semibold"><iconify-icon icon="solar:wallet-money-outline" class="align-middle me-1"></iconify-icon>Receive payment</a>
                 </div>
             @endif
         </div>
@@ -54,15 +58,15 @@
         <div class="card-body">
             <div class="fw-semibold mb-2">Send or print the invoice</div>
             <div class="send-actions">
-                <a href="{{ route('invoices.print', $invoice) }}" class="send-btn dark"><iconify-icon icon="solar:document-text-outline"></iconify-icon><span>View / PDF</span></a>
-                <a href="{{ $waLink }}" target="_blank" rel="noopener" class="send-btn wa"><i class="bx bxl-whatsapp"></i><span>WhatsApp</span></a>
-                <button type="button" class="send-btn d-none js-native-share" data-share-title="Invoice {{ $invoice->number }}" data-share-text="{{ $invoice->whatsappText() }}"><iconify-icon icon="solar:share-outline"></iconify-icon><span>Share</span></button>
+                <a href="{{ route('invoices.print', $invoice) }}" class="send-btn dark"><iconify-icon icon="solar:document-text-outline"></iconify-icon><span>View / Print</span></a>
+                <a href="{{ $waLink }}" target="_blank" rel="noopener" class="send-btn wa" data-share-pdf="{{ route('invoices.pdf', $invoice) }}" data-file-name="{{ $pdfName }}" data-wa="{{ $waLink }}"><i class="bx bxl-whatsapp"></i><span>WhatsApp PDF</span></a>
+                <a href="{{ route('invoices.pdf', $invoice) }}" download="{{ $pdfName }}" class="send-btn"><iconify-icon icon="solar:file-download-outline"></iconify-icon><span>Download PDF</span></a>
                 <button type="button" class="send-btn" data-copy="{{ $invoice->shareUrl() }}"><iconify-icon icon="solar:link-outline"></iconify-icon><span class="js-copy-label">Copy link</span></button>
                 @if ($c->email)
                     <a href="mailto:{{ $c->email }}?subject={{ rawurlencode('Invoice ' . $invoice->number . ' - ' . setting('company_name')) }}&body={{ rawurlencode($invoice->whatsappText()) }}" class="send-btn"><iconify-icon icon="solar:letter-outline"></iconify-icon><span>Email</span></a>
                 @endif
             </div>
-            @if (! $wa)<div class="small text-muted mt-2">No phone number saved for this customer - WhatsApp will ask you to pick the contact.</div>@endif
+            <div class="small text-muted mt-2">WhatsApp PDF sends the invoice as a PDF file. Choose <b>WhatsApp</b>, then the customer.</div>
         </div>
     </div>
 
@@ -90,7 +94,7 @@
                                     {{ $p->sizeLabel() ? 'Size ' . $p->sizeLabel() . ' · ' : '' }}{{ $items->sum('qty') }} pairs &times; {{ money($items->first()->unit_price) }}
                                 </div>
                                 <div class="colour-list mt-1">
-                                    @foreach ($items as $it)<x-colour-chip :name="$it->colour->colour" :qty="$it->qty" />@endforeach
+                                    @foreach ($items as $it)<x-colour-chip :name="$it->colour->title" :qty="$it->qty" />@endforeach
                                 </div>
                                 @if ($returned)<div class="small text-danger mt-1"><iconify-icon icon="solar:undo-left-round-outline" class="align-middle"></iconify-icon> {{ $returned }} pairs returned</div>@endif
                             </div>
@@ -158,3 +162,7 @@
         </div>
     </div>
 @endsection
+
+@push('page-js')
+    @include('partials.share-pdf')
+@endpush

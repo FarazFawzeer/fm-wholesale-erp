@@ -68,6 +68,12 @@ class PaymentController extends Controller
         if (! $lines) {
             throw ValidationException::withMessages(['payments' => 'Enter the amount paid.']);
         }
+        $party = $data['party_type'] === 'customer' ? Customer::findOrFail($data['party_id']) : Supplier::findOrFail($data['party_id']);
+        $owed = max(0, $party->balance());
+        if (PaymentService::linesTotal($lines) - $owed > 0.009) {
+            throw ValidationException::withMessages(['payments' => 'The amount (' . money(PaymentService::linesTotal($lines)) . ') is more than '
+                . ($data['party_type'] === 'customer' ? 'the customer owes' : 'you owe') . ' (' . money($owed) . '). Please check the amounts.']);
+        }
         $alloc = PaymentService::oldestFirst($data['party_type'], (int) $data['party_id'], PaymentService::linesTotal($lines), $data['first_doc'] ?? null);
         $payment = PaymentService::record($data['party_type'] === 'customer' ? 'in' : 'out', $data['party_type'], (int) $data['party_id'],
             $data['date'], $lines, $alloc, $data['notes'] ?? null);

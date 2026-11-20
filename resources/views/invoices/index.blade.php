@@ -41,6 +41,9 @@
                                 <td data-label="Status" class="d-none d-md-table-cell">{!! status_badge($inv->payment_status) !!}@if ($inv->balance() > 0) <small class="text-muted d-block">{{ $inv->daysUnpaid() }} days</small>@endif</td>
                                 <td class="td-actions text-end">
                                     <div class="row-actions">
+                                        @if ($inv->balance() > 0)
+                                            <a href="{{ route('payments.receive', ['customer' => $inv->customer_id, 'invoice' => $inv->id]) }}" class="btn btn-sm btn-soft-success"><iconify-icon icon="solar:wallet-money-outline"></iconify-icon><span>Get paid</span></a>
+                                        @endif
                                         <a href="{{ route('invoices.show', $inv) }}" class="btn btn-sm btn-light"><iconify-icon icon="solar:eye-outline"></iconify-icon><span>Details</span></a>
                                         <a href="{{ route('invoices.print', $inv) }}" class="btn btn-sm btn-dark"><iconify-icon icon="solar:document-text-outline"></iconify-icon><span>Invoice</span></a>
                                     </div>

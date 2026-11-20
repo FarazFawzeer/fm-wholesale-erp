@@ -44,7 +44,8 @@ class DemoSeeder extends Seeder
             ['ARD-1005', 'Suede Low-top Sneaker', 'Urban Walk', 'Casual Sneakers', 39, 44, 6900, 4450, ['Beige', 'Grey', 'Navy'], 'suede'],
             ['ARD-1006', 'Soft Suede Walker', 'Comfort Step', 'Casual Sneakers', 38, 44, 6250, 3950, ['Beige', 'Brown'], 'suede-2'],
             ['ARD-1007', 'Denim Canvas Sneaker', 'Urban Walk', 'Sports Shoes', 36, 43, 4950, 3100, ['Blue', 'Navy', 'White'], 'denim'],
-            ['ARD-1008', 'Kids Denim Sneaker', 'Kids Joy', 'Kids Shoes', 28, 35, 3450, 2150, ['Blue', 'Pink'], 'denim-2'],
+            // kids item: one item no in several size ranges - each colour line has its own range
+            ['ARD-1008', 'Kids Denim Sneaker', 'Kids Joy', 'Kids Shoes', null, null, 3450, 2150, ['Blue|5-7', 'Blue|11-1', 'Pink|11-1', 'Pink|2-5'], 'denim-2'],
         ];
 
         $products = [];
@@ -55,7 +56,8 @@ class DemoSeeder extends Seeder
                 'image_path' => 'images/demo-products/' . $photo . '.jpg',
             ]);
             foreach ($colours as $c) {
-                $p->colours()->create(['colour' => $c, 'qty' => 0]);
+                [$colour, $size] = array_pad(explode('|', $c), 2, null);
+                $p->colours()->create(['colour' => $colour, 'size' => $size, 'qty' => 0]);
             }
             $products[] = ['model' => $p->load('colours'), 'cost' => $cost];
         }

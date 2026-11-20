@@ -18,9 +18,34 @@
                     <div class="mb-3"><label class="form-label">Item No starts with</label>
                         <input name="item_prefix" value="{{ $s['item_prefix'] ?? 'ARD' }}" class="form-control" maxlength="10" style="max-width: 160px">
                         <div class="form-text">The <b>Auto</b> button makes the next number, e.g. {{ ($s['item_prefix'] ?? 'ARD') }}-1001. You can also type any item no yourself.</div></div>
-                    <div class="mb-3"><label class="form-label">Note at the bottom of every invoice</label>
-                        <textarea name="invoice_terms" rows="3" class="form-control" placeholder="e.g. Goods once sold can be exchanged within 7 days with the bill.">{{ $s['invoice_terms'] ?? '' }}</textarea></div>
                     <button class="btn btn-primary">Save</button>
+                </div>
+            </form>
+
+            <form method="POST" action="{{ route('settings.terms') }}" class="card" data-terms>
+                @csrf
+                <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                    <div>
+                        <h5 class="card-title mb-0">Terms &amp; Conditions</h5>
+                        <div class="small text-muted">Printed as numbered points at the bottom of every invoice.</div>
+                    </div>
+                    <span class="badge bg-light text-dark js-terms-count">{{ count($terms) }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="terms-list js-terms">
+                        @foreach ($terms as $t)
+                            <div class="term-row">
+                                <span class="term-no"></span>
+                                <textarea name="terms[]" rows="1" class="form-control" maxlength="300">{{ $t }}</textarea>
+                                <button type="button" class="btn btn-light term-del js-term-del" title="Delete this point"><iconify-icon icon="solar:trash-bin-minimalistic-outline"></iconify-icon></button>
+                            </div>
+                        @endforeach
+                    </div>
+                    <div class="text-muted small js-terms-empty {{ count($terms) ? 'd-none' : '' }}">No terms yet. Add the first point below.</div>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <button type="button" class="btn btn-soft-primary js-term-add"><iconify-icon icon="solar:add-circle-outline" class="align-middle me-1"></iconify-icon>Add point</button>
+                        <button class="btn btn-primary ms-auto">Save terms</button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -56,3 +81,36 @@
         </div>
     </div>
 @endsection
+
+@push('page-js')
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.querySelector('[data-terms]');
+    if (!form) return;
+    const list = form.querySelector('.js-terms');
+    const grow = (t) => { t.style.height = 'auto'; t.style.height = t.scrollHeight + 2 + 'px'; };
+    const renumber = () => {
+        const rows = list.querySelectorAll('.term-row');
+        rows.forEach((r, i) => (r.querySelector('.term-no').textContent = i + 1));
+        form.querySelector('.js-terms-count').textContent = rows.length;
+        form.querySelector('.js-terms-empty').classList.toggle('d-none', rows.length > 0);
+    };
+    form.querySelector('.js-term-add').addEventListener('click', () => {
+        const row = document.createElement('div');
+        row.className = 'term-row';
+        row.innerHTML = '<span class="term-no"></span><textarea name="terms[]" rows="1" class="form-control" maxlength="300" placeholder="e.g. Goods once sold cannot be returned after 7 days."></textarea>'
+            + '<button type="button" class="btn btn-light term-del js-term-del" title="Delete this point"><iconify-icon icon="solar:trash-bin-minimalistic-outline"></iconify-icon></button>';
+        list.appendChild(row);
+        renumber();
+        row.querySelector('textarea').focus();
+    });
+    list.addEventListener('click', (e) => {
+        const del = e.target.closest('.js-term-del');
+        if (del) { del.closest('.term-row').remove(); renumber(); }
+    });
+    list.addEventListener('input', (e) => e.target.matches('textarea') && grow(e.target));
+    list.querySelectorAll('textarea').forEach(grow);
+    renumber();
+});
+</script>
+@endpush

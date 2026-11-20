@@ -47,9 +47,11 @@ class InvoiceController extends Controller
             'payments' => 'array',
         ], ['items.required' => 'Add at least one product.'], ['customer_id' => 'customer']);
 
-        $invoice = TradeService::invoice($data, $request->input('items', []), $request->input('payments', []));
+        $later = $request->input('pay_when') === 'later';
+        $invoice = TradeService::invoice($data, $request->input('items', []), $later ? [] : $request->input('payments', []));
 
-        return redirect()->route('invoices.show', $invoice)->with('success', 'Sale saved. ' . $invoice->totalPairs() . ' pairs taken out of stock.');
+        return redirect()->route('invoices.show', $invoice)->with('success', 'Sale saved. ' . $invoice->totalPairs() . ' pairs taken out of stock.'
+            . ($invoice->balance() > 0 ? ' Send the invoice now - you can record the payment when the customer pays.' : ''));
     }
 
     public function show(Invoice $invoice)
@@ -74,6 +76,28 @@ class InvoiceController extends Controller
         $invoice = Invoice::where('share_token', $token)->firstOrFail();
 
         return $this->printable($invoice, true);
+    }
+
+    /** The invoice as a PDF file (sent to the customer on WhatsApp). */
+    public function pdf(Invoice $invoice)
+    {
+        return $this->pdfFile($invoice);
+    }
+
+    public function publicPdf(string $token)
+    {
+        return $this->pdfFile(Invoice::where('share_token', $token)->firstOrFail());
+    }
+
+    protected function pdfFile(Invoice $invoice)
+    {
+        $invoice->load(['customer', 'items.product.colours', 'items.colour', 'user']);
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('invoices.pdf', [
+            'invoice' => $invoice,
+            'groups' => $invoice->items->groupBy('product_id'),
+        ])->setPaper('a4');
+
+        return $pdf->stream('Invoice-' . $invoice->number . '.pdf');
     }
 
     protected function printable(Invoice $invoice, bool $public)

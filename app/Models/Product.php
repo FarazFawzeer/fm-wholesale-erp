@@ -41,6 +41,12 @@ class Product extends Model
     /** "30-42", "38" or "" */
     public function sizeLabel(): string
     {
+        // size ranges typed on the colour lines, e.g. "5-7, 11-1, 2-5"
+        $sizes = $this->colours->pluck('size')->filter()->unique()->values();
+        if ($sizes->isNotEmpty()) {
+            return $sizes->implode(', ');
+        }
+
         $from = trim((string) $this->size_from);
         $to = trim((string) $this->size_to);
         if ($from !== '' && $to !== '' && $from !== $to) {
@@ -68,7 +74,7 @@ class Product extends Model
     /** "black 20 · white 10 · blue 30" */
     public function colourSummary(): string
     {
-        return $this->colours->map(fn ($c) => $c->colour . ' ' . $c->qty)->implode(' · ');
+        return $this->colours->map(fn ($c) => $c->title . ' ' . $c->qty)->implode(' · ');
     }
 
     public function marginPercent(): ?float
@@ -105,7 +111,7 @@ class Product extends Model
             'image' => $this->imageUrl(),
             'price' => (float) $this->selling_price,
             'cost' => (float) $this->cost_price,
-            'colours' => $this->colours->map(fn ($c) => ['id' => $c->id, 'name' => $c->colour, 'qty' => (int) $c->qty, 'hex' => ProductColour::hex($c->colour)])->values(),
+            'colours' => $this->colours->map(fn ($c) => ['id' => $c->id, 'name' => $c->title, 'colour' => $c->colour, 'size' => $c->size, 'qty' => (int) $c->qty, 'hex' => ProductColour::hex($c->colour)])->values(),
         ];
     }
 

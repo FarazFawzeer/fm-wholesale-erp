@@ -18,7 +18,7 @@ class TradeService
     /**
      * Save a purchase: pairs go into stock straight away, payment (optional) is recorded against it.
      *
-     * $items: [['product_id' => 1, 'price' => 2500, 'colours' => [['id' => 3 | null, 'name' => 'Black', 'qty' => 20], ...]], ...]
+     * $items: [['product_id' => 1, 'price' => 2500, 'colours' => [['id' => 3 | null, 'name' => 'Black', 'size' => '5-7', 'qty' => 20], ...]], ...]
      */
     public static function purchase(array $data, array $items, array $paymentLines): Purchase
     {
@@ -39,7 +39,7 @@ class TradeService
                 if ($name === '' && empty($c['id'])) {
                     throw ValidationException::withMessages(['items' => "Enter the colour name for {$product->name}."]);
                 }
-                $rows[] = compact('product', 'price', 'qty', 'name') + ['colour_id' => $c['id'] ?? null];
+                $rows[] = compact('product', 'price', 'qty', 'name') + ['colour_id' => $c['id'] ?? null, 'size' => $c['size'] ?? null];
                 $subtotal += $qty * $price;
             }
         }
@@ -79,7 +79,7 @@ class TradeService
             foreach ($rows as $r) {
                 $colour = $r['colour_id']
                     ? ProductColour::where('product_id', $r['product']->id)->findOrFail($r['colour_id'])
-                    : StockService::colour($r['product'], $r['name']);
+                    : StockService::colour($r['product'], $r['name'], $r['size']);
                 $unitCost = round($r['price'] * $factor, 2);
                 $purchase->items()->create([
                     'product_id' => $r['product']->id,

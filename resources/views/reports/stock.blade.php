@@ -29,7 +29,7 @@
                             <tr class="{{ $p->isLow() ? 'table-danger-subtle' : '' }}">
                                 <td class="td-title"><a href="{{ route('products.show', $p) }}" class="d-flex align-items-center gap-2"><x-thumb :product="$p" :size="36" />
                                     <span><span class="fw-semibold">{{ $p->name }}</span> <small class="text-muted">{{ $p->code }} {{ $p->sizeLabel() ? '· ' . $p->sizeLabel() : '' }}</small></span></a></td>
-                                <td data-label="Colours"><div class="colour-list justify-content-end justify-content-md-start">@foreach ($p->colours as $c)<x-colour-chip :name="$c->colour" :qty="$c->qty" />@endforeach</div></td>
+                                <td data-label="Colours"><div class="colour-list justify-content-end justify-content-md-start">@foreach ($p->colours as $c)<x-colour-chip :name="$c->title" :qty="$c->qty" />@endforeach</div></td>
                                 <td data-label="Pairs" class="text-end fw-bold {{ $p->isLow() ? 'text-danger' : '' }}">{{ qty($p->totalStock()) }}</td>
                                 <td data-label="Cost value" class="text-end money">{{ money(max(0, $p->totalStock()) * $p->cost_price, false) }}</td>
                             </tr>

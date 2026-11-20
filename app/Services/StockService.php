@@ -25,7 +25,7 @@ class StockService
 
         if ($colour->qty + $qty < 0) {
             throw ValidationException::withMessages([
-                'stock' => "Not enough stock: {$colour->product->name} ({$colour->colour}) has {$colour->qty} pairs, you need " . abs($qty) . '.',
+                'stock' => "Not enough stock: {$colour->product->name} ({$colour->title}) has {$colour->qty} pairs, you need " . abs($qty) . '.',
             ]);
         }
 
@@ -65,11 +65,13 @@ class StockService
     }
 
     /** Find a colour of a product by name, or create it (purchases may bring new colours). */
-    public static function colour(Product $product, string $name): ProductColour
+    public static function colour(Product $product, string $name, ?string $size = null): ProductColour
     {
         $name = trim(preg_replace('/\s+/', ' ', $name));
+        $size = ProductColour::cleanSize($size);
 
-        return $product->colours()->whereRaw('LOWER(colour) = ?', [mb_strtolower($name)])->first()
-            ?? $product->colours()->create(['colour' => ucwords($name), 'qty' => 0]);
+        return $product->colours()->whereRaw('LOWER(colour) = ?', [mb_strtolower($name)])
+            ->when($size, fn ($q) => $q->whereRaw('LOWER(size) = ?', [mb_strtolower($size)]), fn ($q) => $q->whereNull('size'))->first()
+            ?? $product->colours()->create(['colour' => ucwords($name), 'size' => $size, 'qty' => 0]);
     }
 }

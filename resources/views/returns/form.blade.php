@@ -56,7 +56,7 @@
                                     @endphp
                                     <div class="ret-line {{ $max <= 0 ? 'is-done' : '' }}">
                                         <div class="min-w-0">
-                                            <x-colour-chip :name="$it->colour->colour" />
+                                            <x-colour-chip :name="$it->colour->title" />
                                             <div class="small text-muted">
                                                 {{ $isCustomer ? 'Sold' : 'Bought' }} {{ $it->qty }}
                                                 @if ($it->returned_qty) &middot; <span class="text-danger">{{ $it->returned_qty }} already returned</span>@endif

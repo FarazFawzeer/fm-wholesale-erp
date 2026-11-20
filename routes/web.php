@@ -48,6 +48,7 @@ Route::get('manifest.webmanifest', function () {
 })->name('manifest');
 
 // Invoice link sent to customers (WhatsApp) - opens without logging in
+Route::get('i/{token}/pdf', [InvoiceController::class, 'publicPdf'])->where('token', '[A-Za-z0-9]{32}')->middleware('throttle:60,1')->name('invoice.public.pdf');
 Route::get('i/{token}', [InvoiceController::class, 'publicShow'])->where('token', '[A-Za-z0-9]{32}')->middleware('throttle:60,1')->name('invoice.public');
 
 Route::middleware('auth')->group(function () {
@@ -73,6 +74,7 @@ Route::middleware('auth')->group(function () {
     // ---- Sell ----
     Route::resource('invoices', InvoiceController::class)->only(['index', 'create', 'store', 'show']);
     Route::get('invoices/{invoice}/print', [InvoiceController::class, 'print'])->name('invoices.print');
+    Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
 
     // ---- Returns (from customers / to suppliers) ----
     Route::get('returns', [ReturnController::class, 'index'])->name('returns.index');
@@ -106,6 +108,7 @@ Route::middleware('auth')->group(function () {
     // ---- Settings ----
     Route::get('settings', [SettingController::class, 'edit'])->name('settings.edit');
     Route::post('settings', [SettingController::class, 'update'])->name('settings.update');
+    Route::post('settings-terms', [SettingController::class, 'terms'])->name('settings.terms');
     Route::post('settings/{type}', [SettingController::class, 'storeItem'])->name('settings.items.store');
     Route::put('settings/{type}/{id}', [SettingController::class, 'updateItem'])->name('settings.items.update');
     Route::delete('settings/{type}/{id}', [SettingController::class, 'destroyItem'])->name('settings.items.destroy');

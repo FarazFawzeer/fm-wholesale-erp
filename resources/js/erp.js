@@ -183,18 +183,13 @@ function initColourRows() {
         row.querySelector('.dot').style.background = colourHex(name);
     };
     const add = (name = '') => {
-        const existing = [...rows.querySelectorAll('.js-name')].find((n) => n.value.trim().toLowerCase() === name.toLowerCase() && name);
-        if (existing) {
-            (existing.closest('.colour-row').querySelector('.js-qty-input') || existing).focus();
-            return;
-        }
-        // Reuse an empty row before adding another one
+        // Reuse an empty new line before adding another one; the same colour can be added again for another size range
         const blank = name && [...rows.querySelectorAll('.colour-row:not([data-existing])')].find((r) => !r.querySelector('.js-name').value.trim());
         const row = blank || el(tpl.replaceAll('__i', i++));
         row.querySelector('.js-name').value = name;
         if (!blank) rows.appendChild(row);
         paint(row);
-        (name ? row.querySelector('.js-qty-input') : row.querySelector('.js-name')).focus();
+        (name ? row.querySelector('.js-size') : row.querySelector('.js-name')).focus();
         total();
     };
 
@@ -361,7 +356,7 @@ class ItemEditor {
                 this.addBuyColour(line, { id: c.id, name: c.name, hex: c.hex, qty: prev?.qty ?? '', stock: c.qty });
             });
             initRows.filter((r) => !r.id && r.name).forEach((r) => this.addBuyColour(line, { name: r.name, qty: r.qty, isNew: true }));
-            grid.appendChild(el(`<button type="button" class="cq cq-add js-add-colour"><iconify-icon icon="solar:add-circle-outline"></iconify-icon><span>New colour</span></button>`));
+            grid.appendChild(el(`<button type="button" class="cq cq-add js-add-colour"><iconify-icon icon="solar:add-circle-outline"></iconify-icon><span>New colour / size</span></button>`));
             if (!p.colours.length && !initRows.length) this.addBuyColour(line, { name: '', qty: '', isNew: true });
         }
 
@@ -376,10 +371,11 @@ class ItemEditor {
         const grid = line.querySelector('.js-cq-grid');
         const box = el(`<label class="cq ${c.isNew ? 'cq-new' : ''}">
             ${c.isNew
-                ? `<input type="text" name="${n}[name]" value="${esc(c.name)}" class="form-control form-control-sm js-new-colour" placeholder="Colour name" list="colour-names">`
+                ? `<input type="text" name="${n}[name]" value="${esc(c.name)}" class="form-control form-control-sm js-new-colour" placeholder="Colour name" list="colour-names">
+                   <input type="text" name="${n}[size]" value="${esc(c.size || '')}" class="form-control form-control-sm js-new-size mt-1" placeholder="Size e.g. 5-7">`
                 : `<input type="hidden" name="${n}[id]" value="${c.id}"><span class="cq-name"><i style="background:${c.hex}"></i>${esc(c.name)}</span>`}
             <input type="number" min="0" name="${n}[qty]" value="${c.qty}" class="form-control js-cq" inputmode="numeric" placeholder="0">
-            <small>${c.isNew ? 'new colour' : c.stock + ' in stock'}</small>
+            <small>${c.isNew ? 'new line' : c.stock + ' in stock'}</small>
         </label>`);
         const addBtn = grid.querySelector('.js-add-colour');
         addBtn ? grid.insertBefore(box, addBtn) : grid.appendChild(box);
@@ -445,7 +441,15 @@ class PaymentLines {
         this.target = num(this.fixed ? root.dataset.target : document.querySelector('[data-items], [data-pos]')?.dataset.total);
         this.balanceLabel = root.querySelector('.js-balance-row span').textContent;
 
-        root.querySelectorAll('[data-add-method]').forEach((b) => b.addEventListener('click', () => this.add({ method: b.dataset.addMethod })));
+        root.querySelectorAll('[data-add-method]').forEach((b) => b.addEventListener('click', () => {
+            // an untouched auto-filled line is replaced, so the amounts never add up twice
+            this.body.querySelectorAll('.pay-row[data-follow]').forEach((r) => r.remove());
+            this.add({ method: b.dataset.addMethod });
+        }));
+        root.querySelectorAll('[data-pay-amount]').forEach((b) => b.addEventListener('click', () => {
+            this.body.innerHTML = '';
+            this.add({ method: 'cash', amount: num(b.dataset.payAmount).toFixed(2) });
+        }));
         root.querySelector('.js-pay-full').addEventListener('click', () => {
             this.body.innerHTML = '';
             this.add({ method: 'cash', amount: this.target.toFixed(2), follow: true });
@@ -462,9 +466,11 @@ class PaymentLines {
             this.update();
         });
 
+        root.querySelectorAll('.js-pay-when').forEach((r) => r.addEventListener('change', () => this.setWhen(r.value)));
         const initial = JSON.parse(root.dataset.initial || '[]');
         initial.forEach((l) => this.add(l));
         if (!initial.length && root.dataset.startEmpty !== '1' && this.target > 0) this.add({ method: 'cash', amount: this.target.toFixed(2), follow: true });
+        if (root.querySelector('.js-pay-when:checked')?.value === 'later') root.classList.add('is-later');
         this.update();
     }
 
@@ -505,6 +511,15 @@ class PaymentLines {
         });
         this.body.appendChild(row);
         if (!data.amount) row.querySelector('.js-amount').select();
+        this.update();
+    }
+
+    /** Sell screen: "Pay later" hides the payment lines, "Paid now" starts with the full amount in cash. */
+    setWhen(when) {
+        this.root.querySelectorAll('.js-pay-when').forEach((r) => r.closest('label').classList.toggle('active', r.value === when));
+        this.root.classList.toggle('is-later', when === 'later');
+        this.body.innerHTML = '';
+        if (when === 'now' && this.target > 0) this.add({ method: 'cash', amount: this.target.toFixed(2), follow: true });
         this.update();
     }
 

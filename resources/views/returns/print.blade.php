@@ -45,8 +45,8 @@
                     <td class="n">{{ $loop->iteration }}</td>
                     <td>
                         <div class="nm">{{ $p->name }}</div>
-                        <div class="sub"><b>Item No:</b> <span class="mono">{{ $p->code }}</span>@if ($p->sizeLabel()) &nbsp;·&nbsp; <b>Size:</b> {{ $p->sizeLabel() }}@endif</div>
-                        <div class="cols">{{ $items->map(fn ($it) => $it->colour->colour . ' ' . $it->qty)->implode(', ') }}</div>
+                        <div class="sub"><b>Item No:</b> <span class="mono">{{ $p->code }}</span>@if ($p->sizeLabel() && ! $items->contains(fn ($it) => $it->colour->size)) &nbsp;·&nbsp; <b>Size:</b> {{ $p->sizeLabel() }}@endif</div>
+                        <div class="cols">{{ $items->map(fn ($it) => $it->colour->title . ' × ' . $it->qty)->implode(', ') }}</div>
                     </td>
                     <td class="r m first" data-label="Pairs">{{ $items->sum('qty') }}</td>
                     <td class="r nowrap m" data-label="Rate">{{ money($items->first()->unit_price, false) }}</td>

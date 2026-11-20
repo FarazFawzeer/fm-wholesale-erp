@@ -76,3 +76,12 @@ if (! function_exists('amount_in_words')) {
         return $text . ' Only';
     }
 }
+
+if (! function_exists('terms_list')) {
+    /** Invoice terms & conditions as a list of points (from Settings). */
+    function terms_list(): array
+    {
+        return collect(preg_split('/\r\n|\r|\n/', (string) setting('invoice_terms')))
+            ->map(fn ($t) => trim(preg_replace('/^\s*\d+[\.\)]\s*/', '', $t)))->filter()->values()->all();
+    }
+}

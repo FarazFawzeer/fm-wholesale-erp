@@ -24,7 +24,7 @@
                             <div class="flex-grow-1 min-w-0">
                                 <div class="fw-semibold">{{ $p->name }} <span class="text-muted small">{{ $p->sizeLabel() ? 'Size ' . $p->sizeLabel() : '' }}</span></div>
                                 <div class="colour-list">
-                                    @foreach ($items as $it)<x-colour-chip :name="$it->colour->colour" :qty="$it->qty" />@if ($it->returned_qty)<small class="text-danger me-2">-{{ $it->returned_qty }} returned</small>@endif @endforeach
+                                    @foreach ($items as $it)<x-colour-chip :name="$it->colour->title" :qty="$it->qty" />@if ($it->returned_qty)<small class="text-danger me-2">-{{ $it->returned_qty }} returned</small>@endif @endforeach
                                 </div>
                                 <div class="small text-muted">{{ $items->sum('qty') }} pairs &times; {{ money($items->first()->unit_price) }}</div>
                             </div>

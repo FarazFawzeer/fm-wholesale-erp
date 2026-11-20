@@ -50,7 +50,11 @@
                     </div>
                 </div>
                 <div class="col-lg-6">
-                    @include('partials.payment-box', ['step' => 2, 'title' => 'How much & how', 'target' => $due, 'balanceLabel' => 'Still to pay after this'])
+                    @php
+                        $chosen = $firstDoc ? $bills->firstWhere('id', $firstDoc) : null;
+                        $quick = $chosen && $chosen->balance() < $due - 0.009 ? ['Pay ' . $chosen->number . ' (' . money($chosen->balance()) . ')' => $chosen->balance()] : [];
+                    @endphp
+                    @include('partials.payment-box', ['step' => 2, 'title' => 'How much & how', 'target' => $due, 'startEmpty' => '1', 'quick' => $quick, 'fullLabel' => 'Pay all ' . money($due), 'balanceLabel' => $isCustomer ? 'Customer will still owe' : 'You will still owe'])
                     <div class="card">
                         <div class="card-body">
                             <div class="row g-2">

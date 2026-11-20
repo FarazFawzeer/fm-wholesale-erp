@@ -20,6 +20,7 @@ class SettingController extends Controller
     {
         return view('settings.edit', [
             's' => Settings::all(),
+            'terms' => terms_list(),
             'lists' => collect(self::LISTS)->map(fn ($l, $key) => ['key' => $key, 'title' => $l[1], 'items' => $l[0]::withCount($l[2])->orderBy('name')->get(), 'relation' => $l[2]]),
         ]);
     }
@@ -32,13 +33,25 @@ class SettingController extends Controller
             'company_tagline' => 'nullable|max:255',
             'company_address' => 'nullable|max:255',
             'company_phone' => 'nullable|max:100',
-            'invoice_terms' => 'nullable|max:1000',
             'item_prefix' => ['nullable', 'max:10', 'regex:/^[A-Za-z0-9]*$/'],
         ]);
         $data['item_prefix'] = strtoupper($data['item_prefix'] ?? '') ?: 'ARD';
         Settings::set($data);
 
         return back()->with('success', 'Settings saved.');
+    }
+
+    /** Terms & conditions: one point per row, printed as a numbered list on every invoice. */
+    public function terms(Request $request)
+    {
+        abort_unless($request->user()->isManager(), 403, 'Only managers can change settings.');
+        $request->validate(['terms' => 'array|max:30', 'terms.*' => 'nullable|max:300'], [], ['terms.*' => 'point']);
+        $points = collect($request->input('terms', []))
+            ->map(fn ($t) => trim(preg_replace('/^\s*\d+[\.\)]\s*/', '', preg_replace('/\s+/', ' ', (string) $t))))
+            ->filter()->values();
+        Settings::set(['invoice_terms' => $points->implode("\n")]);
+
+        return back()->with('success', 'Terms & conditions saved (' . $points->count() . ' ' . \Illuminate\Support\Str::plural('point', $points->count()) . ').');
     }
 
     public function storeItem(Request $request, string $type)

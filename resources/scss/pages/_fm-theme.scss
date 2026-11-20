@@ -2905,3 +2905,115 @@ body {
           color: var(--fm-ink);
      }
 }
+
+// ---------- Sell: pay later / paid now ----------
+.pay-when {
+     display: grid;
+     grid-template-columns: 1fr 1fr;
+     gap: 8px;
+
+     label {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 10px 12px;
+          border: 1.5px solid var(--fm-line);
+          border-radius: 10px;
+          cursor: pointer;
+          background: var(--fm-surface);
+          transition: border-color .15s, background .15s;
+          margin: 0;
+
+          input { position: absolute; opacity: 0; pointer-events: none; }
+          iconify-icon { font-size: 22px; color: var(--fm-muted); flex: 0 0 auto; }
+          span { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+          b { font-size: .9rem; color: var(--fm-ink); }
+          small { font-size: .72rem; color: var(--fm-muted); }
+
+          &.active {
+               border-color: var(--fm-ink);
+               background: #f8fafc;
+               box-shadow: 0 0 0 3px rgba(17, 24, 39, .06);
+               iconify-icon { color: var(--fm-ink); }
+          }
+     }
+}
+
+[data-payment-lines].is-later {
+     .method-picker, .pay-lines, .pay-summary > div:first-child, .pay-now-box > .d-flex, .pay-now-box > p { display: none !important; }
+     .pay-summary { margin-top: 0; }
+}
+
+// ---------- Settings: terms & conditions ----------
+.terms-list { display: grid; gap: 8px; }
+.term-row {
+     display: flex;
+     align-items: flex-start;
+     gap: 8px;
+
+     .term-no {
+          flex: 0 0 28px;
+          height: 28px;
+          margin-top: 5px;
+          border-radius: 50%;
+          background: var(--fm-ink);
+          color: #fff;
+          font-size: .78rem;
+          font-weight: 700;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+     }
+     textarea { resize: none; overflow: hidden; min-height: 38px; }
+     .term-del { flex: 0 0 auto; color: #d92d20; padding: 6px 10px; }
+}
+
+// ---------- Product form: colour + size range lines ----------
+.colour-head {
+     gap: 8px;
+     font-size: .72rem;
+     font-weight: 600;
+     text-transform: uppercase;
+     letter-spacing: .04em;
+     color: var(--fm-muted);
+     margin-bottom: 6px;
+
+     .dot-sp { flex: 0 0 14px; }
+     .h-name { flex: 1 1 auto; }
+     .h-size { flex: 0 0 120px; }
+     .h-qty { flex: 0 0 100px; text-align: center; }
+     .h-act { flex: 0 0 34px; }
+}
+.colour-rows { display: grid; gap: 8px; }
+.colour-row {
+     .js-size { flex: 0 0 120px; }
+     .stock-now { flex: 0 0 100px; min-width: 0; text-align: center; }
+}
+@media (max-width: 575.98px) {
+     .colour-row {
+          flex-wrap: wrap;
+          padding: 10px;
+          border: 1px solid var(--fm-line);
+          border-radius: 10px;
+          background: var(--fm-surface);
+
+          .js-name { flex: 1 1 calc(100% - 70px); }
+          .js-size { flex: 1 1 calc(50% - 30px); order: 3; }
+          .js-qty-input, .stock-now { flex: 1 1 calc(50% - 30px); order: 4; }
+          > .btn, > label.btn, > span.btn { order: 2; }
+          .dot { order: 0; }
+     }
+}
+
+// "Get paid" / "Pay supplier" screen: the amount is always entered here
+[data-payment-lines][data-target]:not([data-target=""]).not-paid .pay-lines::before {
+     content: 'Tap how they paid (Cash, Cheque...) above, then type the amount.';
+}
+
+// phone rows with three buttons (Get paid / Details / Invoice) sit in one line
+@media (max-width: 767.98px) {
+     .erp-table.stack .row-actions:has(> :nth-child(3)) {
+          grid-template-columns: repeat(3, 1fr);
+          .btn { padding: 10px 6px; font-size: .82rem; gap: 4px; }
+     }
+}
