@@ -91,13 +91,37 @@ class InvoiceController extends Controller
 
     protected function pdfFile(Invoice $invoice)
     {
+        @set_time_limit(120);
+        @ini_set('memory_limit', '512M');
         $invoice->load(['customer', 'items.product.colours', 'items.colour', 'user']);
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('invoices.pdf', [
-            'invoice' => $invoice,
-            'groups' => $invoice->items->groupBy('product_id'),
-        ])->setPaper('a4');
+        $name = 'Invoice-' . $invoice->number . '.pdf';
 
-        return $pdf->stream('Invoice-' . $invoice->number . '.pdf');
+        try {
+            // dompdf keeps font data here; make sure the folder exists on a fresh server
+            $fonts = storage_path('fonts');
+            if (! is_dir($fonts)) {
+                @mkdir($fonts, 0755, true);
+            }
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::setOptions(['font_dir' => $fonts, 'font_cache' => $fonts, 'chroot' => [base_path(), public_path()]])
+                ->loadView('invoices.pdf', [
+                    'invoice' => $invoice,
+                    'groups' => $invoice->items->groupBy('product_id'),
+                ])->setPaper('a4');
+            $content = $pdf->output();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response('The PDF could not be made: ' . $e->getMessage(), 500)
+                ->header('Content-Type', 'text/plain; charset=utf-8')
+                ->header('X-Pdf-Error', mb_substr(preg_replace('/\s+/', ' ', $e->getMessage()), 0, 180));
+        }
+
+        return response($content, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => (request()->boolean('download') ? 'attachment' : 'inline') . '; filename="' . $name . '"',
+            'Content-Length' => strlen($content),
+            'Cache-Control' => 'private, no-store',
+        ]);
     }
 
     protected function printable(Invoice $invoice, bool $public)

@@ -60,7 +60,7 @@
             <div class="send-actions">
                 <a href="{{ route('invoices.print', $invoice) }}" class="send-btn dark"><iconify-icon icon="solar:document-text-outline"></iconify-icon><span>View / Print</span></a>
                 <a href="{{ $waLink }}" target="_blank" rel="noopener" class="send-btn wa" data-share-pdf="{{ route('invoices.pdf', $invoice) }}" data-file-name="{{ $pdfName }}" data-wa="{{ $waLink }}"><i class="bx bxl-whatsapp"></i><span>WhatsApp PDF</span></a>
-                <a href="{{ route('invoices.pdf', $invoice) }}" download="{{ $pdfName }}" class="send-btn"><iconify-icon icon="solar:file-download-outline"></iconify-icon><span>Download PDF</span></a>
+                <a href="{{ route('invoices.pdf', [$invoice, 'download' => 1]) }}" download="{{ $pdfName }}" class="send-btn"><iconify-icon icon="solar:file-download-outline"></iconify-icon><span>Download PDF</span></a>
                 <button type="button" class="send-btn" data-copy="{{ $invoice->shareUrl() }}"><iconify-icon icon="solar:link-outline"></iconify-icon><span class="js-copy-label">Copy link</span></button>
                 @if ($c->email)
                     <a href="mailto:{{ $c->email }}?subject={{ rawurlencode('Invoice ' . $invoice->number . ' - ' . setting('company_name')) }}&body={{ rawurlencode($invoice->whatsappText()) }}" class="send-btn"><iconify-icon icon="solar:letter-outline"></iconify-icon><span>Email</span></a>
@@ -91,10 +91,10 @@
                                     <strong class="money text-nowrap">{{ money($items->sum('line_total')) }}</strong>
                                 </div>
                                 <div class="small text-muted">
-                                    {{ $p->sizeLabel() ? 'Size ' . $p->sizeLabel() . ' · ' : '' }}{{ $items->sum('qty') }} pairs &times; {{ money($items->first()->unit_price) }}
+                                    {{ $p->sizeLabel() && ! $items->contains(fn ($it) => $it->colour->size) ? 'Size ' . $p->sizeLabel() . ' · ' : '' }}{{ $items->sum('qty') }} pairs &times; {{ money($items->first()->unit_price) }}
                                 </div>
                                 <div class="colour-list mt-1">
-                                    @foreach ($items as $it)<x-colour-chip :name="$it->colour->title" :qty="$it->qty" />@endforeach
+                                    <x-colour-chips :lines="$items" />
                                 </div>
                                 @if ($returned)<div class="small text-danger mt-1"><iconify-icon icon="solar:undo-left-round-outline" class="align-middle"></iconify-icon> {{ $returned }} pairs returned</div>@endif
                             </div>

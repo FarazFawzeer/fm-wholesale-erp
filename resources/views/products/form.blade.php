@@ -77,43 +77,61 @@
                     </div>
                     <div class="card-body">
                         <div class="quick-colours mb-3">
-                            <span class="small text-muted me-1">Tap a colour to add a line (tap again for another size range):</span>
+                            <span class="small text-muted me-1">Tap a colour to add it (tap again to add another size range to it):</span>
                             @foreach (\App\Models\ProductColour::COMMON as $c)
                                 <button type="button" class="colour-chip btn-chip" data-add-colour="{{ $c }}"><i style="background: {{ \App\Models\ProductColour::hex($c) }}"></i>{{ $c }}</button>
                             @endforeach
                         </div>
 
-                        <div class="colour-head d-none d-sm-flex">
-                            <span class="dot-sp"></span><span class="h-name">Colour</span><span class="h-size">Size range</span><span class="h-qty">Pairs</span><span class="h-act"></span>
-                        </div>
-                        <div class="colour-rows js-rows">
-                            @foreach ($product->colours as $i => $c)
-                                <div class="colour-row" data-existing>
-                                    <input type="hidden" name="colours[{{ $i }}][id]" value="{{ $c->id }}">
-                                    <span class="dot" style="background: {{ \App\Models\ProductColour::hex($c->colour) }}"></span>
-                                    <input name="colours[{{ $i }}][name]" value="{{ $c->colour }}" class="form-control js-name" list="colour-list" aria-label="Colour">
-                                    <input name="colours[{{ $i }}][size]" value="{{ $c->size }}" class="form-control js-size" placeholder="e.g. 5-7" aria-label="Size range">
-                                    <span class="stock-now" title="In stock now"><b class="js-qty" data-qty="{{ $c->qty }}">{{ $c->qty }}</b> pairs</span>
-                                    @if ($c->qty == 0)
-                                        <label class="btn btn-sm btn-soft-danger mb-0" title="Remove this line"><input type="checkbox" name="colours[{{ $i }}][delete]" value="1" class="d-none js-del-check"><iconify-icon icon="solar:trash-bin-minimalistic-outline"></iconify-icon></label>
-                                    @else
-                                        <span class="btn btn-sm btn-light disabled" title="Has stock - cannot remove"><iconify-icon icon="solar:lock-keyhole-outline"></iconify-icon></span>
-                                    @endif
+                        <div class="colour-groups js-groups">
+                            @foreach ($product->colours->groupBy('colour')->values() as $g => $lines)
+                                <div class="colour-group" data-group data-existing>
+                                    <div class="cg-head">
+                                        <span class="dot" style="background: {{ \App\Models\ProductColour::hex($lines->first()->colour) }}"></span>
+                                        <input name="groups[{{ $g }}][name]" value="{{ $lines->first()->colour }}" class="form-control js-name" list="colour-list" aria-label="Colour" required>
+                                        <span class="cg-total"><b class="js-group-total">{{ $lines->sum('qty') }}</b> pairs</span>
+                                    </div>
+                                    <div class="cg-lines js-lines">
+                                        @foreach ($lines as $k => $c)
+                                            <div class="cg-line" data-existing>
+                                                <input type="hidden" name="groups[{{ $g }}][lines][{{ $k }}][id]" value="{{ $c->id }}">
+                                                <input name="groups[{{ $g }}][lines][{{ $k }}][size]" value="{{ $c->size }}" class="form-control js-size" placeholder="Size e.g. 5-7" aria-label="Size range">
+                                                <span class="stock-now" title="In stock now"><b class="js-qty" data-qty="{{ $c->qty }}">{{ $c->qty }}</b> pairs</span>
+                                                @if ($c->qty == 0)
+                                                    <label class="btn btn-sm btn-soft-danger mb-0" title="Remove this size range"><input type="checkbox" name="groups[{{ $g }}][lines][{{ $k }}][delete]" value="1" class="d-none js-del-check"><iconify-icon icon="solar:trash-bin-minimalistic-outline"></iconify-icon></label>
+                                                @else
+                                                    <span class="btn btn-sm btn-light disabled" title="Has stock - cannot remove"><iconify-icon icon="solar:lock-keyhole-outline"></iconify-icon></span>
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                    <button type="button" class="cg-add js-add-size"><iconify-icon icon="solar:add-circle-outline"></iconify-icon>Add size range</button>
                                 </div>
                             @endforeach
                         </div>
-                        <template class="js-row-template">
-                            <div class="colour-row">
-                                <span class="dot"></span>
-                                <input name="colours[__i][name]" class="form-control js-name" placeholder="Colour" list="colour-list" aria-label="Colour">
-                                <input name="colours[__i][size]" class="form-control js-size" placeholder="Size e.g. 5-7" aria-label="Size range">
-                                <input type="number" min="0" name="colours[__i][qty]" class="form-control js-qty-input" placeholder="Pairs" inputmode="numeric" aria-label="Pairs">
-                                <button type="button" class="btn btn-sm btn-soft-danger js-remove" title="Remove"><iconify-icon icon="solar:trash-bin-minimalistic-outline"></iconify-icon></button>
+
+                        <template class="js-group-template">
+                            <div class="colour-group" data-group>
+                                <div class="cg-head">
+                                    <span class="dot"></span>
+                                    <input name="groups[__g][name]" class="form-control js-name" placeholder="Colour name" list="colour-list" aria-label="Colour">
+                                    <span class="cg-total"><b class="js-group-total">0</b> pairs</span>
+                                    <button type="button" class="btn btn-sm btn-soft-danger js-remove-group" title="Remove this colour"><iconify-icon icon="solar:trash-bin-minimalistic-outline"></iconify-icon></button>
+                                </div>
+                                <div class="cg-lines js-lines"></div>
+                                <button type="button" class="cg-add js-add-size"><iconify-icon icon="solar:add-circle-outline"></iconify-icon>Add size range</button>
+                            </div>
+                        </template>
+                        <template class="js-line-template">
+                            <div class="cg-line">
+                                <input name="groups[__g][lines][__k][size]" class="form-control js-size" placeholder="Size e.g. 5-7" aria-label="Size range">
+                                <input type="number" min="0" name="groups[__g][lines][__k][qty]" class="form-control js-qty-input" placeholder="Pairs" inputmode="numeric" aria-label="Pairs">
+                                <button type="button" class="btn btn-sm btn-light js-remove-line" title="Remove this size range"><iconify-icon icon="solar:close-circle-outline" class="fs-18"></iconify-icon></button>
                             </div>
                         </template>
                         <datalist id="colour-list">@foreach (\App\Models\ProductColour::COMMON as $c)<option value="{{ $c }}">@endforeach</datalist>
 
-                        <button type="button" class="btn btn-soft-primary btn-sm mt-2 js-add-row"><iconify-icon icon="solar:add-circle-outline" class="align-middle me-1"></iconify-icon>Add line</button>
+                        <button type="button" class="btn btn-soft-primary btn-sm mt-2 js-add-group"><iconify-icon icon="solar:add-circle-outline" class="align-middle me-1"></iconify-icon>Add colour</button>
 
                         <div class="row g-2 mt-3 js-opening-cost {{ $product->exists && $product->cost_price > 0 ? 'd-none' : '' }}">
                             <div class="col-md-6"><label class="form-label">Cost per pair for this opening stock (Rs)</label>
@@ -121,7 +139,7 @@
                                 <div class="form-text">Used to work out profit. New stock you buy later is added from <b>Buy</b>.</div></div>
                         </div>
                         @if ($product->exists)
-                            <div class="form-text mt-2">To change the pairs of a line, use <b>Correct stock</b> on the product page, or record a purchase / sale.</div>
+                            <div class="form-text mt-2">To change the pairs of a size range, use <b>Correct stock</b> on the product page, or record a purchase / sale.</div>
                         @endif
                     </div>
                 </div>

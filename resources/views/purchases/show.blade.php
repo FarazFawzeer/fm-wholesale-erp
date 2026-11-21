@@ -5,6 +5,7 @@
         @if ($purchase->balance() > 0)
             <a href="{{ route('payments.pay', ['supplier' => $purchase->supplier_id, 'purchase' => $purchase->id]) }}" class="btn btn-warning"><iconify-icon icon="solar:card-send-outline" class="align-middle me-1"></iconify-icon>Pay</a>
         @endif
+        <button type="button" class="btn btn-soft-danger" data-bs-toggle="modal" data-bs-target="#missing-modal"><iconify-icon icon="solar:box-minimalistic-outline" class="align-middle me-1"></iconify-icon>Missing / damaged</button>
         <a href="{{ route('returns.supplier', $purchase) }}" class="btn btn-soft-secondary"><iconify-icon icon="solar:undo-left-round-outline" class="align-middle me-1"></iconify-icon>Return to supplier</a>
     </x-page-header>
 
@@ -22,11 +23,14 @@
                         <div class="doc-line">
                             <x-thumb :product="$p" :size="52" />
                             <div class="flex-grow-1 min-w-0">
-                                <div class="fw-semibold">{{ $p->name }} <span class="text-muted small">{{ $p->sizeLabel() ? 'Size ' . $p->sizeLabel() : '' }}</span></div>
+                                <div class="fw-semibold">{{ $p->name }} <span class="text-muted small">{{ $p->sizeLabel() && ! $items->contains(fn ($it) => $it->colour->size) ? 'Size ' . $p->sizeLabel() : '' }}</span></div>
                                 <div class="colour-list">
-                                    @foreach ($items as $it)<x-colour-chip :name="$it->colour->title" :qty="$it->qty" />@if ($it->returned_qty)<small class="text-danger me-2">-{{ $it->returned_qty }} returned</small>@endif @endforeach
+                                    <x-colour-chips :lines="$items" />@if ($items->sum('returned_qty'))<small class="text-danger ms-1">-{{ $items->sum('returned_qty') }} sent back</small>@endif
                                 </div>
                                 <div class="small text-muted">{{ $items->sum('qty') }} pairs &times; {{ money($items->first()->unit_price) }}</div>
+                                @foreach ($items->where('missing_qty', '>', 0) as $it)
+                                    <div class="missing-note"><iconify-icon icon="solar:danger-triangle-outline"></iconify-icon>{{ $it->colour->title }}: <b>{{ $it->missing_qty }}</b> not received &middot; {{ $it->missing_reason }}</div>
+                                @endforeach
                             </div>
                             <strong class="money">{{ money($items->sum('line_total')) }}</strong>
                         </div>
@@ -34,6 +38,9 @@
 
                     <div class="totals-box ms-auto mt-3" style="max-width: 340px">
                         <div class="row-total"><span>Amount ({{ $purchase->totalPairs() }} pairs)</span><span class="money">{{ money($purchase->subtotal) }}</span></div>
+                        @if ($purchase->missingPairs())
+                            <div class="row-total text-danger small"><span>Received {{ $purchase->totalPairs() - $purchase->missingPairs() }} &middot; {{ $purchase->missingPairs() }} missing / damaged</span><span class="money">{{ money($purchase->items->sum(fn ($it) => $it->missing_qty * $it->unit_cost)) }}</span></div>
+                        @endif
                         @if ($purchase->discount > 0)<div class="row-total"><span>Discount</span><span class="money">- {{ money($purchase->discount) }}</span></div>@endif
                         @if ($purchase->other_costs > 0)<div class="row-total"><span>Transport / other</span><span class="money">{{ money($purchase->other_costs) }}</span></div>@endif
                         <div class="row-total grand"><span>Total</span><span class="money">{{ money($purchase->total) }}</span></div>
@@ -70,6 +77,28 @@
                 </div>
             @endif
             <div class="small text-muted">Saved by {{ $purchase->user?->name ?? '-' }} on {{ $purchase->created_at->format('d M Y H:i') }}</div>
+        </div>
+    </div>
+
+    {{-- Record pairs that did not arrive (found after saving the purchase) --}}
+    <div class="modal fade" id="missing-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <form method="POST" action="{{ route('purchases.missing', $purchase) }}" class="modal-content">
+                @csrf
+                <div class="modal-header"><h5 class="modal-title">Missing / damaged pairs</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-3">You paid for these pairs but they did not arrive in good condition (damaged, kept by customs, missing from the box). Type how many on each line - they are taken out of stock and shown in <b>Reports &rsaquo; Missing pairs</b>.</p>
+                    @foreach ($purchase->items as $it)
+                        <div class="missing-row">
+                            <div class="min-w-0 flex-grow-1"><b class="d-block text-truncate">{{ $it->product->name }}</b><small class="text-muted">{{ $it->colour->title }} &middot; billed {{ $it->qty }} pairs</small></div>
+                            <input type="number" min="0" max="{{ $it->qty - $it->returned_qty }}" name="missing[{{ $it->id }}]" value="{{ $it->missing_qty ?: '' }}" class="form-control text-center" placeholder="0" inputmode="numeric" aria-label="Missing pairs">
+                            <input name="reason[{{ $it->id }}]" value="{{ $it->missing_reason }}" class="form-control" list="missing-reasons" placeholder="Why?" aria-label="Reason">
+                        </div>
+                    @endforeach
+                    <datalist id="missing-reasons">@foreach (\App\Models\PurchaseItem::REASONS as $r)<option value="{{ $r }}">@endforeach</datalist>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary">Save</button></div>
+            </form>
         </div>
     </div>
 @endsection

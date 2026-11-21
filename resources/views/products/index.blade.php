@@ -11,6 +11,7 @@
 
 @section('content')
     <x-page-header title="Products">
+        <a href="{{ route('catalogue.index') }}" class="btn btn-success"><iconify-icon icon="solar:gallery-send-outline" class="align-middle me-1"></iconify-icon>Send catalogue</a>
         <button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#product-lookup"><iconify-icon icon="solar:tag-price-outline" class="align-middle me-1"></iconify-icon>Check price</button>
         <a href="{{ route('products.create') }}" class="btn btn-primary"><iconify-icon icon="solar:add-circle-outline" class="align-middle me-1"></iconify-icon>Add product</a>
     </x-page-header>
@@ -65,7 +66,7 @@
                         </div>
                         <div class="product-name mt-1">{{ $p->name }}</div>
                         <div class="colour-list my-2">
-                            @foreach ($p->colours as $c)<x-colour-chip :name="$c->title" :qty="$c->qty" />@endforeach
+                            <x-colour-chips :lines="$p->colours" />
                         </div>
                         <div class="d-flex justify-content-between align-items-end">
                             <span class="product-price">{{ money($p->selling_price) }}</span>
@@ -94,7 +95,7 @@
                                         </a>
                                     </td>
                                     <td class="text-nowrap">{{ $p->sizeLabel() ?: '-' }}</td>
-                                    <td><div class="colour-list">@foreach ($p->colours as $c)<x-colour-chip :name="$c->title" :qty="$c->qty" />@endforeach</div></td>
+                                    <td><div class="colour-list"><x-colour-chips :lines="$p->colours" /></div></td>
                                     <td class="text-end text-nowrap fw-semibold">{{ money($p->selling_price) }}</td>
                                     <td class="text-end"><span class="stock-pill inline st-{{ $st }}">{{ qty($p->totalStock()) }} pairs</span></td>
                                     <td class="td-actions text-end"><a href="{{ route('invoices.create', ['product' => $p->id]) }}" class="btn btn-sm btn-light {{ $p->totalStock() <= 0 ? 'disabled' : '' }}">Sell</a></td>
@@ -124,7 +125,7 @@
                         </div>
                         @if ($p->colours->count())
                             <div class="plist-colours">
-                                @foreach ($p->colours as $c)<span class="{{ $c->qty <= 0 ? 'zero' : '' }}"><i style="background: {{ \App\Models\ProductColour::hex($c->colour) }}"></i>{{ $c->title }} <b>{{ $c->qty }}</b></span>@endforeach
+                                @foreach (colour_groups($p->colours) as $g)<span class="{{ $g['qty'] <= 0 ? 'zero' : '' }}"><i style="background: {{ $g['hex'] }}"></i>{{ $g['colour'] }}@if ($g['sized'])@foreach ($g['sizes'] as $s) <small>{{ $s['size'] ?: 'other' }}</small> <b>{{ $s['qty'] }}</b>@endforeach @else <b>{{ $g['qty'] }}</b>@endif</span>@endforeach
                             </div>
                         @endif
                     </div>

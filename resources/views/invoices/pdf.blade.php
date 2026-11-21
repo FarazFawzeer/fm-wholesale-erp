@@ -4,7 +4,8 @@
     $net = $invoice->total - $invoice->returned_amount;
     $terms = collect(terms_list());
     $status = $balance <= 0 ? 'Paid' : ($invoice->paid_amount > 0 ? 'Part paid' : 'Not paid');
-    $logo = public_path('images/logo-dark.png');
+    $logo = public_path('images/logo-pdf.jpg'); // JPEG: works even when the server has no image (GD) extension
+    $logoSrc = is_file($logo) ? 'data:image/jpeg;base64,' . base64_encode(file_get_contents($logo)) : null;
 @endphp
 <!DOCTYPE html>
 <html>
@@ -55,7 +56,7 @@
 <body>
     <table class="top">
         <tr>
-            <td>@if (is_file($logo))<img src="{{ $logo }}" class="logo">@endif</td>
+            <td>@if ($logoSrc)<img src="{{ $logoSrc }}" class="logo">@endif</td>
             <td class="r">
                 <h1>Invoice</h1>
                 <div class="no"># {{ $invoice->number }}</div>
@@ -102,7 +103,7 @@
                     <td>
                         <div class="nm">{{ $p->name }}</div>
                         <div class="sub"><b>Item No:</b> {{ $p->code }}@if ($p->sizeLabel() && ! $items->contains(fn ($it) => $it->colour->size)) &nbsp;&middot;&nbsp; <b>Size:</b> {{ $p->sizeLabel() }}@endif</div>
-                        <div class="cols">{{ $items->map(fn ($it) => $it->colour->title . ' × ' . $it->qty)->implode(', ') }}</div>
+                        <div class="cols">{!! collect(colour_lines($items))->map(fn ($l) => e($l))->implode('<br>') !!}</div>
                     </td>
                     <td class="r">{{ $items->sum('qty') }}</td>
                     <td class="r">{{ money($items->first()->unit_price, false) }}</td>

@@ -59,6 +59,8 @@ Route::middleware('auth')->group(function () {
     Route::get('products/lookup', [ProductController::class, 'lookup'])->name('products.lookup');
     Route::post('products/quick', [ProductController::class, 'quickStore'])->name('products.quick');
     Route::post('products/{product}/correct', [ProductController::class, 'correctStock'])->name('products.correct');
+    Route::get('catalogue', [\App\Http\Controllers\CatalogueController::class, 'index'])->name('catalogue.index');
+    Route::get('catalogue/pdf', [\App\Http\Controllers\CatalogueController::class, 'pdf'])->name('catalogue.pdf');
     Route::resource('products', ProductController::class);
 
     // ---- People ----
@@ -70,6 +72,7 @@ Route::middleware('auth')->group(function () {
 
     // ---- Buy ----
     Route::resource('purchases', PurchaseController::class)->only(['index', 'create', 'store', 'show']);
+    Route::post('purchases/{purchase}/missing', [PurchaseController::class, 'missing'])->name('purchases.missing');
 
     // ---- Sell ----
     Route::resource('invoices', InvoiceController::class)->only(['index', 'create', 'store', 'show']);
@@ -104,6 +107,7 @@ Route::middleware('auth')->group(function () {
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('reports/best-sellers', [ReportController::class, 'products'])->name('reports.products');
     Route::get('reports/stock', [ReportController::class, 'stock'])->name('reports.stock');
+    Route::get('reports/missing', [ReportController::class, 'missing'])->name('reports.missing');
 
     // ---- Settings ----
     Route::get('settings', [SettingController::class, 'edit'])->name('settings.edit');

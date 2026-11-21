@@ -25,7 +25,10 @@ class Product extends Model
 
     public function colours(): HasMany
     {
-        return $this->hasMany(ProductColour::class)->orderBy('id');
+        // each colour's size ranges stay together, colours in the order they were first added
+        return $this->hasMany(ProductColour::class)
+            ->orderByRaw('(SELECT MIN(pc2.id) FROM product_colours pc2 WHERE pc2.product_id = product_colours.product_id AND pc2.colour = product_colours.colour)')
+            ->orderBy('id');
     }
 
     public function invoiceItems(): HasMany
@@ -69,6 +72,77 @@ class Product extends Model
     public function imageUrl(): ?string
     {
         return $this->image_path ? asset($this->image_path) : null;
+    }
+
+    /** Colours + size ranges that still have pairs, for sending to customers: ["Navy: 5-7, 11-1", "Black"]. */
+    public function availableLines(bool $pairs = false): array
+    {
+        return array_map(function ($g) use ($pairs) {
+            if (! $g['sized']) {
+                return $g['colour'] . ($pairs ? ' (' . $g['qty'] . ' prs)' : '');
+            }
+
+            return $g['colour'] . ': ' . implode(', ', array_map(fn ($s) => ($s['size'] !== '' ? $s['size'] : 'other') . ($pairs ? ' (' . $s['qty'] . ')' : ''), $g['sizes']));
+        }, colour_groups($this->colours->where('qty', '>', 0)));
+    }
+
+    /** WhatsApp text for one product (no price). */
+    public function shareText(): string
+    {
+        $lines = ['*' . $this->name . '*', 'Item No: ' . $this->code];
+        if ($extra = collect([$this->brand?->name, $this->category?->name])->filter()->implode(' · ')) {
+            $lines[] = $extra;
+        }
+        if ($available = $this->availableLines()) {
+            $lines[] = '';
+            $lines[] = 'Available:';
+            foreach ($available as $a) {
+                $lines[] = '• ' . $a;
+            }
+        }
+        $lines[] = '';
+        $lines[] = trim(setting('company_name') . ' ' . setting('company_phone'));
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Photo for the PDF catalogue: cut to the same square for every product (centre crop),
+     * cached in storage/app/pdf-images. Without the GD extension the original JPEG is used.
+     */
+    public function pdfImagePath(int $size = 420): ?string
+    {
+        $path = $this->image_path ? public_path($this->image_path) : null;
+        if (! $path || ! is_file($path)) {
+            return null;
+        }
+        $isJpeg = in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['jpg', 'jpeg']);
+        if (! function_exists('imagecreatefromstring')) {
+            return $isJpeg ? $path : null;
+        }
+        $dir = storage_path('app/pdf-images');
+        $out = $dir . '/' . $this->id . '-' . substr(md5($path . filemtime($path) . $size), 0, 10) . '.jpg';
+        if (is_file($out)) {
+            return $out;
+        }
+        $src = @imagecreatefromstring((string) file_get_contents($path));
+        if (! $src) {
+            return $isJpeg ? $path : null;
+        }
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        $w = imagesx($src);
+        $h = imagesy($src);
+        $side = min($w, $h);
+        $dst = imagecreatetruecolor($size, $size);
+        imagefill($dst, 0, 0, imagecolorallocate($dst, 255, 255, 255));
+        imagecopyresampled($dst, $src, 0, 0, (int) (($w - $side) / 2), (int) (($h - $side) / 2), $size, $size, $side, $side);
+        imagejpeg($dst, $out, 82);
+        imagedestroy($src);
+        imagedestroy($dst);
+
+        return is_file($out) ? $out : ($isJpeg ? $path : null);
     }
 
     /** "black 20 · white 10 · blue 30" */

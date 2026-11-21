@@ -161,57 +161,99 @@ function initFormHelpers() {
     });
 }
 
-// ---------- Product form: colour rows with opening pairs ----------
+// ---------- Product form: one block per colour, each with its size ranges + opening pairs ----------
 function initColourRows() {
     const box = document.querySelector('[data-colour-rows]');
     if (!box) return;
-    const rows = box.querySelector('.js-rows');
-    const tpl = box.querySelector('.js-row-template').innerHTML;
-    let i = rows.children.length + 100;
+    const groups = box.querySelector('.js-groups');
+    const groupTpl = box.querySelector('.js-group-template').innerHTML;
+    const lineTpl = box.querySelector('.js-line-template').innerHTML;
+    let g = groups.children.length + 100;
+    let k = 1000;
 
     const total = () => {
         let t = 0;
-        rows.querySelectorAll('.js-qty').forEach((q) => (t += num(q.dataset.qty)));
-        rows.querySelectorAll('.js-qty-input').forEach((q) => (t += num(q.value)));
+        groups.querySelectorAll('.colour-group').forEach((grp) => {
+            let gt = 0;
+            grp.querySelectorAll('.js-qty').forEach((q) => (gt += num(q.dataset.qty)));
+            grp.querySelectorAll('.js-qty-input').forEach((q) => (gt += num(q.value)));
+            grp.querySelector('.js-group-total').textContent = gt;
+            t += gt;
+        });
         box.querySelector('.js-colour-total').textContent = t;
-        const hasNewPairs = [...rows.querySelectorAll('.js-qty-input')].some((q) => num(q.value) > 0);
+        const hasNewPairs = [...groups.querySelectorAll('.js-qty-input')].some((q) => num(q.value) > 0);
         const cost = box.querySelector('.js-opening-cost');
         if (cost && hasNewPairs) cost.classList.remove('d-none');
     };
-    const paint = (row) => {
-        const name = row.querySelector('.js-name').value;
-        row.querySelector('.dot').style.background = colourHex(name);
+    const paint = (grp) => {
+        grp.querySelector('.dot').style.background = colourHex(grp.querySelector('.js-name').value);
     };
-    const add = (name = '') => {
-        // Reuse an empty new line before adding another one; the same colour can be added again for another size range
-        const blank = name && [...rows.querySelectorAll('.colour-row:not([data-existing])')].find((r) => !r.querySelector('.js-name').value.trim());
-        const row = blank || el(tpl.replaceAll('__i', i++));
-        row.querySelector('.js-name').value = name;
-        if (!blank) rows.appendChild(row);
-        paint(row);
-        (name ? row.querySelector('.js-size') : row.querySelector('.js-name')).focus();
+    const addLine = (grp, focus = true) => {
+        const line = el(lineTpl.replaceAll('__g', grp.dataset.g).replaceAll('__k', k++));
+        grp.querySelector('.js-lines').appendChild(line);
+        if (focus) line.querySelector('.js-size').focus();
         total();
+        return line;
     };
+    const addGroup = (name = '') => {
+        const grp = el(groupTpl.replaceAll('__g', g));
+        grp.dataset.g = g++;
+        grp.querySelector('.js-name').value = name;
+        groups.appendChild(grp);
+        paint(grp);
+        addLine(grp, false);
+        (name ? grp.querySelector('.js-size') : grp.querySelector('.js-name')).focus();
+        total();
+        return grp;
+    };
+    // existing blocks: give them their index for new size lines
+    groups.querySelectorAll('.colour-group').forEach((grp, idx) => (grp.dataset.g = idx));
 
-    box.querySelector('.js-add-row').addEventListener('click', () => add());
-    box.querySelectorAll('[data-add-colour]').forEach((b) => b.addEventListener('click', () => add(b.dataset.addColour)));
-    rows.addEventListener('input', (e) => {
-        const row = e.target.closest('.colour-row');
-        if (e.target.classList.contains('js-name')) paint(row);
+    // Tap a colour: if it is already on the product, add another size range to it; otherwise add the colour
+    const findGroup = (name) => [...groups.querySelectorAll('.colour-group')].find((grp) => grp.querySelector('.js-name').value.trim().toLowerCase() === name.toLowerCase());
+    const blankGroup = () => [...groups.querySelectorAll('.colour-group:not([data-existing])')].find((grp) => !grp.querySelector('.js-name').value.trim()
+        && ![...grp.querySelectorAll('input')].some((i) => i !== grp.querySelector('.js-name') && i.value.trim()));
+
+    box.querySelector('.js-add-group').addEventListener('click', () => addGroup());
+    box.querySelectorAll('[data-add-colour]').forEach((b) => b.addEventListener('click', () => {
+        const name = b.dataset.addColour;
+        const found = findGroup(name);
+        if (found) {
+            addLine(found);
+            return;
+        }
+        const blank = blankGroup();
+        if (blank) {
+            blank.querySelector('.js-name').value = name;
+            paint(blank);
+            blank.querySelector('.js-size').focus();
+            return;
+        }
+        addGroup(name);
+    }));
+    groups.addEventListener('input', (e) => {
+        if (e.target.classList.contains('js-name')) paint(e.target.closest('.colour-group'));
         total();
     });
-    rows.addEventListener('click', (e) => {
-        if (e.target.closest('.js-remove')) {
-            e.target.closest('.colour-row').remove();
+    groups.addEventListener('click', (e) => {
+        const grp = e.target.closest('.colour-group');
+        if (e.target.closest('.js-add-size')) addLine(grp);
+        if (e.target.closest('.js-remove-group')) {
+            grp.remove();
+            total();
+        }
+        if (e.target.closest('.js-remove-line')) {
+            e.target.closest('.cg-line').remove();
+            if (!grp.querySelector('.cg-line')) grp.remove(); // last size range gone -> colour gone
             total();
         }
     });
-    rows.addEventListener('change', (e) => {
+    groups.addEventListener('change', (e) => {
         if (e.target.classList.contains('js-del-check')) {
-            e.target.closest('.colour-row').classList.toggle('removing', e.target.checked);
+            e.target.closest('.cg-line').classList.toggle('removing', e.target.checked);
         }
     });
-    if (!rows.children.length) add();
+    if (!groups.children.length) addGroup();
     total();
 }
 
@@ -327,10 +369,15 @@ class ItemEditor {
                 </div>
                 <div class="cq-label small text-muted mb-1">${this.mode === 'buy' ? 'Pairs per colour' : 'Pairs per colour (in stock shown below)'}</div>
                 <div class="cq-grid js-cq-grid"></div>
+                ${this.mode === 'buy' ? `<div class="miss-box">
+                    <button type="button" class="miss-toggle js-miss-toggle"><iconify-icon icon="solar:box-minimalistic-outline"></iconify-icon>Some pairs missing / damaged?</button>
+                    <div class="miss-reason"><span class="small text-muted">Type the missing pairs under each colour above. Reason:</span>
+                        <input type="text" name="${n}[missing_reason]" value="${esc(init?.missing_reason || '')}" class="form-control form-control-sm" list="missing-reasons" placeholder="e.g. Damaged, Customs took"></div>
+                </div>` : ''}
                 <div class="item-foot">
                     <label class="price-box"><span>Price / pair</span>
                         <input type="number" step="0.01" min="0" name="${n}[price]" value="${price}" class="form-control js-price" inputmode="decimal" required></label>
-                    <div class="text-end"><div class="small text-muted"><span class="js-line-pairs">0</span> pairs</div><strong class="js-line-total money">Rs 0.00</strong></div>
+                    <div class="text-end"><div class="small text-muted js-line-pairs">0 pairs</div><strong class="js-line-total money">Rs 0.00</strong></div>
                 </div>
             </div>`);
         line.dataset.i = i;
@@ -353,9 +400,10 @@ class ItemEditor {
             const initRows = init?.colours ? Object.values(init.colours) : [];
             p.colours.forEach((c) => {
                 const prev = initRows.find((r) => r.id == c.id);
-                this.addBuyColour(line, { id: c.id, name: c.name, hex: c.hex, qty: prev?.qty ?? '', stock: c.qty });
+                this.addBuyColour(line, { id: c.id, name: c.name, hex: c.hex, qty: prev?.qty ?? '', missing: prev?.missing, stock: c.qty });
             });
-            initRows.filter((r) => !r.id && r.name).forEach((r) => this.addBuyColour(line, { name: r.name, qty: r.qty, isNew: true }));
+            initRows.filter((r) => !r.id && r.name).forEach((r) => this.addBuyColour(line, { name: r.name, size: r.size, qty: r.qty, missing: r.missing, isNew: true }));
+            if (initRows.some((r) => parseInt(r.missing) > 0)) line.classList.add('show-missing');
             grid.appendChild(el(`<button type="button" class="cq cq-add js-add-colour"><iconify-icon icon="solar:add-circle-outline"></iconify-icon><span>New colour / size</span></button>`));
             if (!p.colours.length && !initRows.length) this.addBuyColour(line, { name: '', qty: '', isNew: true });
         }
@@ -376,6 +424,7 @@ class ItemEditor {
                 : `<input type="hidden" name="${n}[id]" value="${c.id}"><span class="cq-name"><i style="background:${c.hex}"></i>${esc(c.name)}</span>`}
             <input type="number" min="0" name="${n}[qty]" value="${c.qty}" class="form-control js-cq" inputmode="numeric" placeholder="0">
             <small>${c.isNew ? 'new line' : c.stock + ' in stock'}</small>
+            <input type="number" min="0" name="${n}[missing]" value="${c.missing || ''}" class="form-control form-control-sm js-miss" inputmode="numeric" placeholder="missing" title="Pairs missing / damaged">
         </label>`);
         const addBtn = grid.querySelector('.js-add-colour');
         addBtn ? grid.insertBefore(box, addBtn) : grid.appendChild(box);
@@ -383,6 +432,12 @@ class ItemEditor {
     }
 
     onClick(e) {
+        const missToggle = e.target.closest('.js-miss-toggle');
+        if (missToggle) {
+            const line = missToggle.closest('.item-line');
+            line.classList.toggle('show-missing');
+            line.querySelector('.js-miss')?.focus();
+        }
         if (e.target.closest('.js-remove-line')) {
             e.target.closest('.item-line').remove();
             this.root.querySelector('.empty-lines').classList.toggle('d-none', this.lines.children.length > 0);
@@ -408,7 +463,16 @@ class ItemEditor {
                 lp += q;
             });
             const lt = lp * num(line.querySelector('.js-price').value);
-            line.querySelector('.js-line-pairs').textContent = lp;
+            let miss = 0;
+            line.querySelectorAll('.cq').forEach((box) => {
+                const m = box.querySelector('.js-miss');
+                if (!m) return;
+                const q = Math.max(0, parseInt(box.querySelector('.js-cq')?.value) || 0);
+                const v = Math.max(0, parseInt(m.value) || 0);
+                m.classList.toggle('is-invalid', v > q);
+                miss += Math.min(v, q);
+            });
+            line.querySelector('.js-line-pairs').innerHTML = `${lp} pairs` + (miss ? ` · <span class="text-danger">${miss} missing</span>` : '');
             line.querySelector('.js-line-total').textContent = 'Rs ' + fmt(lt);
             pairs += lp;
             amount += lt;

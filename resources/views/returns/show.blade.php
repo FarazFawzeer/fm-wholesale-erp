@@ -55,7 +55,7 @@
                                     <strong class="money text-nowrap">{{ money($items->sum('line_total')) }}</strong>
                                 </div>
                                 <div class="small text-muted">{{ $items->sum('qty') }} pairs &times; {{ money($items->first()->unit_price) }}</div>
-                                <div class="colour-list mt-1">@foreach ($items as $it)<x-colour-chip :name="$it->colour->title" :qty="$it->qty" />@endforeach</div>
+                                <div class="colour-list mt-1"><x-colour-chips :lines="$items" /></div>
                             </div>
                         </div>
                     @endforeach

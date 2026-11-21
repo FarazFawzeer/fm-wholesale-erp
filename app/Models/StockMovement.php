@@ -19,6 +19,7 @@ class StockMovement extends Model
         'return' => 'Customer return',
         'purchase_return' => 'Returned to supplier',
         'correction' => 'Stock correction',
+        'missing' => 'Missing / damaged on arrival',
     ];
 
     public function colour(): BelongsTo

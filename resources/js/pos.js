@@ -6,6 +6,19 @@
 const fmt = (n) => new Intl.NumberFormat('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
 const num = (v) => parseFloat(v) || 0;
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/** Group colour lines by colour name: [{colour, hex, qty, sized, items: [...]}] */
+export const colourGroups = (list) => {
+    const out = [];
+    list.forEach((c) => {
+        const name = c.colour || c.name;
+        let g = out.find((x) => x.key === name.toLowerCase());
+        if (!g) out.push((g = { key: name.toLowerCase(), colour: name, hex: c.hex, qty: 0, sized: false, items: [] }));
+        g.items.push(c);
+        g.qty += c.qty;
+        g.sized = g.sized || !!c.size;
+    });
+    return out;
+};
 const norm = (s) => String(s ?? '').toLowerCase().replace(/[\s\-_.]+/g, '');
 
 export class PosSell {
@@ -134,19 +147,24 @@ export class PosSell {
         m.querySelector('.js-pick-meta').textContent = [p.size ? 'Size ' + p.size : '', p.brand, this.stock(p) + ' pairs in stock'].filter(Boolean).join(' · ');
         m.querySelector('.js-pick-price').value = line ? line.price : p.price;
         m.querySelector('.js-pick-add').textContent = line ? 'Update bill' : 'Add to bill';
+        const row = (c, label, dot) => {
+            const q = line?.qty[c.id] || '';
+            const out = c.qty <= 0;
+            return `<div class="pick-row ${out ? 'out' : ''} ${dot ? '' : 'pick-row-size'}" data-colour="${c.id}" data-max="${Math.max(0, c.qty)}">
+                ${dot ? `<span class="pick-dot" style="background:${c.hex}"></span>` : ''}
+                <span class="flex-grow-1"><b>${esc(label)}</b><small class="d-block ${out ? 'text-danger' : 'text-muted'}">${out ? 'None left' : c.qty + ' in stock'}</small></span>
+                <span class="pick-quick">${[6, 12].map((n) => `<button type="button" class="js-plus" data-n="${n}" ${out ? 'disabled' : ''}>+${n}</button>`).join('')}</span>
+                <span class="stepper"><button type="button" class="js-step" data-d="-1" ${out ? 'disabled' : ''}>−</button>
+                    <input type="number" min="0" max="${Math.max(0, c.qty)}" value="${q}" placeholder="0" inputmode="numeric" class="js-pick-qty" ${out ? 'disabled' : ''}>
+                    <button type="button" class="js-step" data-d="1" ${out ? 'disabled' : ''}>+</button></span>
+            </div>`;
+        };
+        // one block per colour; a colour with size ranges shows each range under it
         m.querySelector('.js-pick-colours').innerHTML = p.colours.length
-            ? p.colours.map((c) => {
-                  const q = line?.qty[c.id] || '';
-                  const out = c.qty <= 0;
-                  return `<div class="pick-row ${out ? 'out' : ''}" data-colour="${c.id}" data-max="${Math.max(0, c.qty)}">
-                    <span class="pick-dot" style="background:${c.hex}"></span>
-                    <span class="flex-grow-1"><b>${esc(c.name)}</b><small class="d-block ${out ? 'text-danger' : 'text-muted'}">${out ? 'None left' : c.qty + ' in stock'}</small></span>
-                    <span class="pick-quick">${[6, 12].map((n) => `<button type="button" class="js-plus" data-n="${n}" ${out ? 'disabled' : ''}>+${n}</button>`).join('')}</span>
-                    <span class="stepper"><button type="button" class="js-step" data-d="-1" ${out ? 'disabled' : ''}>−</button>
-                        <input type="number" min="0" max="${Math.max(0, c.qty)}" value="${q}" placeholder="0" inputmode="numeric" class="js-pick-qty" ${out ? 'disabled' : ''}>
-                        <button type="button" class="js-step" data-d="1" ${out ? 'disabled' : ''}>+</button></span>
-                </div>`;
-              }).join('')
+            ? colourGroups(p.colours).map((g) => g.sized
+                ? `<div class="pick-group"><div class="pick-group-head"><span class="pick-dot" style="background:${g.hex}"></span><b>${esc(g.colour)}</b><small class="text-muted">${g.qty} in stock</small></div>
+                    ${g.items.map((c) => row(c, c.size ? 'Size ' + c.size : 'Other', false)).join('')}</div>`
+                : g.items.map((c) => row(c, c.name, true)).join('')).join('')
             : '<div class="text-danger small">This product has no colours / stock yet. Buy stock first.</div>';
         this.pickTotal();
         this.modal.show();
@@ -201,11 +219,11 @@ export class PosSell {
             const lp = Object.values(qty).reduce((a, b) => a + b, 0);
             pairs += lp;
             amount += lp * price;
-            const chips = Object.entries(qty).map(([cid, q]) => {
-                const c = p.colours.find((x) => x.id == cid);
-                return `<span class="colour-chip"><i style="background:${c?.hex}"></i>${esc(c?.name)}<b>${q}</b></span>
-                    <input type="hidden" name="${n}[colours][${cid}]" value="${q}">`;
-            }).join('');
+            const picked = Object.entries(qty).map(([cid, q]) => ({ ...(p.colours.find((x) => x.id == cid) || { name: '?', colour: '?' }), id: cid, qty: q }));
+            const chips = colourGroups(picked).map((g) => `<span class="colour-chip ${g.sized ? 'colour-chip-sizes' : ''}"><i style="background:${g.hex}"></i>${esc(g.colour)}${g.sized
+                ? g.items.map((c) => `<span class="cc-size">${esc(c.size || 'other')}<b>${c.qty}</b></span>`).join('')
+                : `<b>${g.qty}</b>`}</span>`).join('')
+                + picked.map((c) => `<input type="hidden" name="${n}[colours][${c.id}]" value="${c.qty}">`).join('');
             return `<div class="pos-line" data-id="${p.id}">
                 <input type="hidden" name="${n}[product_id]" value="${p.id}"><input type="hidden" name="${n}[price]" value="${price}">
                 ${this.img(p, 'pos-line-img')}

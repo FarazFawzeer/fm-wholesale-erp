@@ -150,7 +150,7 @@ class ProductController extends Controller
                 ->latest('date')->latest('id')->limit(40)->get(),
             'soldPairs' => $sold(),
             'sold30' => $sold(now()->subDays(29)->toDateString()),
-            'boughtPairs' => (int) $product->purchaseItems()->sum(DB::raw('qty - returned_qty')),
+            'boughtPairs' => (int) $product->purchaseItems()->sum(DB::raw('qty - missing_qty - returned_qty')),
             'sales' => $sales,
             'purchases' => $purchases,
             'lastSale' => $sales->first(),
@@ -233,8 +233,12 @@ class ProductController extends Controller
             'colours.*.name' => 'nullable|max:40',
             'colours.*.size' => 'nullable|max:20',
             'colours.*.qty' => 'nullable|integer|min:0',
+            'groups' => 'array',
+            'groups.*.name' => 'nullable|max:40',
+            'groups.*.lines.*.size' => 'nullable|max:20',
+            'groups.*.lines.*.qty' => 'nullable|integer|min:0',
             'opening_cost' => 'nullable|numeric|min:0',
-        ], ['code.unique' => 'This item no is already used by another product.'], ['code' => 'item no', 'photo' => 'photo', 'colours.*.name' => 'colour name']);
+        ], ['code.unique' => 'This item no is already used by another product.'], ['code' => 'item no', 'photo' => 'photo', 'colours.*.name' => 'colour name', 'groups.*.name' => 'colour name', 'groups.*.lines.*.size' => 'size range', 'groups.*.lines.*.qty' => 'pairs']);
 
         if (filled($data['new_brand'] ?? null)) {
             $data['brand_id'] = Brand::firstOrCreate(['name' => trim($data['new_brand'])])->id;
@@ -246,13 +250,35 @@ class ProductController extends Controller
         $data['low_stock_level'] = (int) ($data['low_stock_level'] ?? 12);
         $data['is_active'] = $request->boolean('is_active', true);
 
-        return collect($data)->except(['new_brand', 'new_category', 'photo', 'colours', 'opening_cost'])->all();
+        return collect($data)->except(['new_brand', 'new_category', 'photo', 'colours', 'groups', 'opening_cost'])->all();
     }
 
     /** Colour lines (colour + size range): edit existing ones, add new ones with optional opening stock. */
+    /**
+     * The form sends one block per colour with its size ranges:
+     * groups[0][name]=Blue, groups[0][lines][0][size]=5-7, ...[qty]=10 -> flat colour lines.
+     */
+    protected function colourRows(Request $request): array
+    {
+        $rows = array_values($request->input('colours', []));
+        foreach ($request->input('groups', []) as $group) {
+            foreach (($group['lines'] ?? []) as $line) {
+                $rows[] = [
+                    'id' => $line['id'] ?? null,
+                    'name' => $group['name'] ?? '',
+                    'size' => $line['size'] ?? null,
+                    'qty' => $line['qty'] ?? null,
+                    'delete' => $line['delete'] ?? null,
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
     protected function saveColours(Request $request, Product $product, float $openingCost): void
     {
-        foreach ($request->input('colours', []) as $row) {
+        foreach ($this->colourRows($request) as $row) {
             $name = ucwords(trim(preg_replace('/\s+/', ' ', (string) ($row['name'] ?? ''))));
             $size = ProductColour::cleanSize($row['size'] ?? null);
             $id = $row['id'] ?? null;
@@ -275,6 +301,9 @@ class ProductController extends Controller
                 continue;
             }
             if ($name === '') {
+                if ((int) ($row['qty'] ?? 0) > 0 || $size) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['colours' => 'Type the colour name for every colour block.']);
+                }
                 continue;
             }
             $colour = StockService::colour($product, $name, $size);

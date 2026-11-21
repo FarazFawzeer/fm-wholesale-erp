@@ -10,6 +10,7 @@
 
 @section('content')
     <x-page-header title="Product details" :crumbs="['Products' => route('products.index'), $product->code]">
+            <a href="https://wa.me/" class="btn btn-success {{ $stock <= 0 ? 'disabled' : '' }}" data-share-product data-share-text="{{ $product->shareText() }}" data-image="{{ $product->imageUrl() }}" data-file-name="{{ \Illuminate\Support\Str::slug($product->code) }}.jpg" title="Send photo + details to a customer (no price)"><i class="bx bxl-whatsapp me-1"></i>Share</a>
             <a href="{{ route('products.edit', $product) }}" class="btn btn-light"><iconify-icon icon="solar:pen-outline" class="align-middle me-1"></iconify-icon>Edit</a>
             <a href="{{ route('purchases.create', ['product' => $product->id]) }}" class="btn btn-light"><iconify-icon icon="solar:box-outline" class="align-middle me-1"></iconify-icon>Buy more</a>
             <a href="{{ route('invoices.create', ['product' => $product->id]) }}" class="btn btn-brand {{ $stock <= 0 ? 'disabled' : '' }}"><iconify-icon icon="solar:cart-large-2-outline" class="align-middle me-1"></iconify-icon>Sell</a>
@@ -152,7 +153,7 @@
                                                     @php $url = match ($m->reference_type) { 'App\Models\Invoice' => route('invoices.show', $m->reference_id), 'App\Models\Purchase' => route('purchases.show', $m->reference_id), 'App\Models\GoodsReturn' => route('returns.show', $m->reference_id), default => null }; @endphp
                                                     &middot; @if ($url)<a href="{{ $url }}">{{ $m->reference_no }}</a>@else{{ $m->reference_no }}@endif
                                                 @endif
-                                                @if ($m->type === 'correction' && $m->note)<span class="text-muted small">&middot; {{ $m->note }}</span>@endif
+                                                @if (in_array($m->type, ['correction', 'missing']) && $m->note)<span class="text-muted small">&middot; {{ $m->note }}</span>@endif
                                             </td>
                                             <td data-label="Pairs" class="text-end fw-bold {{ $m->qty < 0 ? 'text-danger' : 'text-success' }}">{{ $m->qty > 0 ? '+' : '' }}{{ $m->qty }}</td>
                                             <td data-label="Stock after" class="text-end">{{ $m->balance }}</td>
@@ -197,3 +198,7 @@
         </div>
     </div>
 @endsection
+
+@push('page-js')
+    @include('partials.share-product')
+@endpush

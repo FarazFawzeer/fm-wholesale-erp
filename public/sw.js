@@ -2,7 +2,7 @@
  * Pages always come fresh from the server (stock and money must be live).
  * Only the look (CSS/JS/fonts/images) is kept on the phone so the app opens fast,
  * and a friendly "no internet" page is shown when offline. */
-const VERSION = 'fm-v1';
+const VERSION = 'fm-v2';
 const STATIC = VERSION + '-static';
 const OFFLINE = '/offline.html';
 
@@ -22,6 +22,9 @@ self.addEventListener('fetch', (e) => {
     const req = e.request;
     if (req.method !== 'GET') return;
     const url = new URL(req.url);
+
+    // PDF files (invoice download / WhatsApp) go straight to the server, never through the offline page
+    if (url.pathname.endsWith('/pdf')) return;
 
     // Pages: network only, offline page if there is no connection
     if (req.mode === 'navigate') {

@@ -51,7 +51,7 @@
                     <td>
                         <div class="nm">{{ $p->name }}</div>
                         <div class="sub"><b>Item No:</b> <span class="mono">{{ $p->code }}</span>@if ($p->sizeLabel() && ! $items->contains(fn ($it) => $it->colour->size)) &nbsp;·&nbsp; <b>Size:</b> {{ $p->sizeLabel() }}@endif</div>
-                        <div class="cols">{{ $items->map(fn ($it) => $it->colour->title . ' × ' . $it->qty)->implode(', ') }}</div>
+                        <div class="cols">{!! collect(colour_lines($items))->map(fn ($l) => e($l))->implode('<br>') !!}</div>
                     </td>
                     <td class="r m first" data-label="Pairs">{{ $items->sum('qty') }}</td>
                     <td class="r nowrap m" data-label="Rate">{{ money($items->first()->unit_price, false) }}</td>

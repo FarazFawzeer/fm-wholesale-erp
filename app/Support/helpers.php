@@ -85,3 +85,65 @@ if (! function_exists('terms_list')) {
             ->map(fn ($t) => trim(preg_replace('/^\s*\d+[\.\)]\s*/', '', $t)))->filter()->values()->all();
     }
 }
+
+if (! function_exists('colour_groups')) {
+    /**
+     * Group colour lines by colour, so a colour with several size ranges shows once.
+     * $lines: ProductColour models, or invoice / purchase / return items (with ->colour and a qty field).
+     * Returns [['colour' => 'Blue', 'hex' => '#..', 'qty' => 22, 'sized' => true, 'sizes' => [['size' => '5-7', 'qty' => 10], ...]], ...]
+     */
+    function colour_groups($lines, string $qtyField = 'qty'): array
+    {
+        $out = [];
+        foreach ($lines as $line) {
+            $c = $line instanceof \App\Models\ProductColour ? $line : $line->colour;
+            if (! $c) {
+                continue;
+            }
+            $qty = (int) data_get($line, $qtyField);
+            $key = mb_strtolower(trim($c->colour));
+            $out[$key] ??= ['colour' => $c->colour, 'hex' => \App\Models\ProductColour::hex($c->colour), 'qty' => 0, 'sized' => false, 'sizes' => []];
+            $out[$key]['qty'] += $qty;
+            $size = (string) $c->size;
+            $out[$key]['sized'] = $out[$key]['sized'] || $size !== '';
+            $out[$key]['sizes'][$size] = ['size' => $size, 'qty' => ($out[$key]['sizes'][$size]['qty'] ?? 0) + $qty];
+        }
+
+        return array_values(array_map(fn ($g) => ['sizes' => array_values($g['sizes'])] + $g, $out));
+    }
+}
+
+if (! function_exists('colour_lines')) {
+    /** One text line per colour for bills: "Blue: 5-7 × 10, 11-1 × 12" or "Black × 6". */
+    function colour_lines($lines, string $qtyField = 'qty'): array
+    {
+        return array_map(function ($g) {
+            if (! $g['sized']) {
+                return $g['colour'] . ' × ' . $g['qty'];
+            }
+
+            return $g['colour'] . ': ' . implode(', ', array_map(fn ($s) => ($s['size'] !== '' ? $s['size'] : 'other') . ' × ' . $s['qty'], $g['sizes']));
+        }, colour_groups($lines, $qtyField));
+    }
+}
+
+if (! function_exists('age_label')) {
+    /** 12 -> "12 days", 75 -> "2 months", 430 -> "1 year 2 months". */
+    function age_label(?int $days): string
+    {
+        if ($days === null) {
+            return '-';
+        }
+        if ($days < 31) {
+            return $days . ' day' . ($days === 1 ? '' : 's');
+        }
+        $months = (int) floor($days / 30.44);
+        if ($months < 12) {
+            return $months . ' month' . ($months === 1 ? '' : 's');
+        }
+        $y = intdiv($months, 12);
+        $m = $months % 12;
+
+        return $y . ' year' . ($y > 1 ? 's' : '') . ($m ? ' ' . $m . ' month' . ($m > 1 ? 's' : '') : '');
+    }
+}

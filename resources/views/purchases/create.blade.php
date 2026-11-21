@@ -42,5 +42,7 @@
                 </div>
             </div>
         </div>
+        <datalist id="missing-reasons">@foreach (\App\Models\PurchaseItem::REASONS as $r)<option value="{{ $r }}">@endforeach</datalist>
+        <datalist id="colour-names">@foreach (\App\Models\ProductColour::COMMON as $c)<option value="{{ $c }}">@endforeach</datalist>
     </form>
 @endsection

@@ -63,4 +63,10 @@ class Purchase extends Model
     {
         return (int) $this->items->sum('qty');
     }
+
+    /** Pairs paid for but not received (damaged, customs, missing). */
+    public function missingPairs(): int
+    {
+        return (int) $this->items->sum('missing_qty');
+    }
 }

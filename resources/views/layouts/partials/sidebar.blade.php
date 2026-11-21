@@ -7,6 +7,7 @@
         ['label' => 'Buy', 'icon' => 'solar:box-outline', 'route' => 'purchases.index', 'match' => 'purchases.*'],
         ['label' => 'Returns', 'icon' => 'solar:undo-left-round-outline', 'route' => 'returns.index', 'match' => 'returns.*'],
         ['label' => 'Products', 'icon' => 'ph:sneaker', 'route' => 'products.index', 'match' => 'products.*'],
+        ['label' => 'Send catalogue', 'icon' => 'solar:gallery-send-outline', 'route' => 'catalogue.index', 'match' => 'catalogue.*'],
         ['label' => 'Customers', 'icon' => 'solar:users-group-rounded-outline', 'route' => 'customers.index', 'match' => 'customers.*'],
         ['label' => 'Suppliers', 'icon' => 'solar:delivery-outline', 'route' => 'suppliers.index', 'match' => 'suppliers.*'],
         ['title' => 'Money'],

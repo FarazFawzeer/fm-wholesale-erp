@@ -50,7 +50,10 @@ class PurchaseController extends Controller
 
         $purchase = TradeService::purchase($data, $request->input('items', []), $request->input('payments', []));
 
-        return redirect()->route('purchases.show', $purchase)->with('success', 'Purchase saved. ' . $purchase->totalPairs() . ' pairs added to stock.');
+        $missing = $purchase->missingPairs();
+
+        return redirect()->route('purchases.show', $purchase)->with('success', 'Purchase saved. ' . ($purchase->totalPairs() - $missing) . ' pairs added to stock.'
+            . ($missing ? " {$missing} missing / damaged pairs recorded." : ''));
     }
 
     public function show(Purchase $purchase)
@@ -58,5 +61,41 @@ class PurchaseController extends Controller
         $purchase->load(['supplier', 'items.product', 'items.colour', 'allocations.payment.lines', 'returns', 'user']);
 
         return view('purchases.show', ['purchase' => $purchase, 'groups' => $purchase->items->groupBy('product_id')]);
+    }
+
+    /**
+     * Record (or correct) pairs that did not arrive - found after the purchase was saved.
+     * missing[item_id] = total missing pairs on that line, reason[item_id] = why.
+     */
+    public function missing(Request $request, Purchase $purchase)
+    {
+        $data = $request->validate([
+            'missing' => 'array',
+            'missing.*' => 'nullable|integer|min:0',
+            'reason' => 'array',
+            'reason.*' => 'nullable|max:60',
+        ]);
+        $changed = 0;
+        \Illuminate\Support\Facades\DB::transaction(function () use ($purchase, $data, &$changed) {
+            foreach ($purchase->items as $item) {
+                if (! array_key_exists($item->id, $data['missing'] ?? [])) {
+                    continue;
+                }
+                $new = min((int) $data['missing'][$item->id], $item->qty - $item->returned_qty);
+                $reason = trim((string) ($data['reason'][$item->id] ?? '')) ?: ($item->missing_reason ?: 'Missing');
+                $diff = $new - $item->missing_qty;
+                if ($diff === 0 && $reason === $item->missing_reason) {
+                    continue;
+                }
+                if ($diff !== 0) {
+                    \App\Services\StockService::move($item->product_colour_id, -$diff, 'missing', (float) $item->unit_cost, $purchase,
+                        $diff > 0 ? $reason : 'Found (was recorded missing)');
+                }
+                $item->update(['missing_qty' => $new, 'missing_reason' => $new ? mb_substr($reason, 0, 60) : null]);
+                $changed++;
+            }
+        });
+
+        return back()->with('success', $changed ? 'Missing / damaged pairs saved. Stock updated.' : 'Nothing changed.');
     }
 }

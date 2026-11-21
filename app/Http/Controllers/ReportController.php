@@ -98,17 +98,86 @@ class ReportController extends Controller
         return view('reports.products', compact('from', 'to', 'rows', 'colours'));
     }
 
-    /** Stock on hand with value. */
+    /**
+     * Stock on hand with value and AGE: how long the pairs still in stock have been here.
+     * "In stock since" = the date the oldest pairs still on hand came in (first in, first out).
+     */
     public function stock(Request $request)
     {
-        $products = Product::with(['colours', 'brand'])->where('is_active', true)->orderBy('name')->get()
-            ->when($request->show === 'low', fn ($c) => $c->filter->isLow()->values());
+        $products = Product::with(['colours', 'brand'])->where('is_active', true)->orderBy('name')->get();
+
+        // pairs that came in, newest first, per product
+        $incoming = DB::table('stock_movements')
+            ->join('product_colours', 'product_colours.id', '=', 'stock_movements.product_colour_id')
+            ->where('stock_movements.qty', '>', 0)
+            ->whereIn('stock_movements.type', ['opening', 'purchase', 'return', 'correction'])
+            ->orderByDesc('stock_movements.date')->orderByDesc('stock_movements.id')
+            ->get(['product_colours.product_id', 'stock_movements.date', 'stock_movements.qty'])
+            ->groupBy('product_id');
+        $lastSold = DB::table('invoice_items')->join('invoices', 'invoices.id', '=', 'invoice_items.invoice_id')
+            ->groupBy('invoice_items.product_id')->selectRaw('invoice_items.product_id, MAX(invoices.date) AS d')->pluck('d', 'product_id');
+
+        $today = now()->startOfDay();
+        foreach ($products as $p) {
+            $stock = $p->totalStock();
+            $since = null;
+            if ($stock > 0) {
+                $acc = 0;
+                foreach ($incoming[$p->id] ?? [] as $m) {
+                    $acc += $m->qty;
+                    $since = $m->date;
+                    if ($acc >= $stock) {
+                        break;
+                    }
+                }
+                $since = \Illuminate\Support\Carbon::parse($since ?? $p->created_at)->startOfDay();
+            }
+            $p->stock_since = $since;
+            $p->age_days = $since ? (int) $since->diffInDays($today) : null;
+            $p->last_sold = isset($lastSold[$p->id]) ? \Illuminate\Support\Carbon::parse($lastSold[$p->id]) : null;
+        }
+
+        $age = (int) $request->age; // months
+        $products = $products
+            ->when($request->show === 'low', fn ($c) => $c->filter->isLow())
+            ->when($age > 0, fn ($c) => $c->filter(fn ($p) => $p->stock_since && $p->stock_since->lte($today->copy()->subMonthsNoOverflow($age))))
+            ->when($request->from, fn ($c, $d) => $c->filter(fn ($p) => $p->stock_since && $p->stock_since->gte(\Illuminate\Support\Carbon::parse($d))))
+            ->when($request->to, fn ($c, $d) => $c->filter(fn ($p) => $p->stock_since && $p->stock_since->lte(\Illuminate\Support\Carbon::parse($d))))
+            ->when($request->sort === 'oldest', fn ($c) => $c->sortByDesc(fn ($p) => $p->age_days ?? -1))
+            ->when($request->sort === 'pairs', fn ($c) => $c->sortByDesc(fn ($p) => $p->totalStock()))
+            ->values();
+
+        $old = $products->filter(fn ($p) => $p->age_days !== null && $p->age_days >= 182);
 
         return view('reports.stock', [
             'products' => $products,
-            'pairs' => $products->sum(fn ($p) => $p->totalStock()),
+            'pairs' => $products->sum(fn ($p) => max(0, $p->totalStock())),
             'costValue' => $products->sum(fn ($p) => max(0, $p->totalStock()) * $p->cost_price),
             'saleValue' => $products->sum(fn ($p) => max(0, $p->totalStock()) * $p->selling_price),
+            'oldPairs' => $old->sum(fn ($p) => $p->totalStock()),
+            'oldValue' => $old->sum(fn ($p) => $p->totalStock() * $p->cost_price),
+        ]);
+    }
+
+    /** Pairs paid for but not received (damaged, customs, missing) - from purchases in the period. */
+    public function missing(Request $request)
+    {
+        [$from, $to] = $this->range($request);
+        $rows = \App\Models\PurchaseItem::with(['purchase.supplier', 'product', 'colour'])
+            ->where('missing_qty', '>', 0)
+            ->whereHas('purchase', fn ($q) => $q->whereBetween('date', [$from, $to]))
+            ->get()
+            ->sortByDesc(fn ($it) => $it->purchase->date->format('Ymd') . str_pad($it->id, 8, '0', STR_PAD_LEFT))->values();
+
+        return view('reports.missing', [
+            'from' => $from,
+            'to' => $to,
+            'rows' => $rows,
+            'pairs' => $rows->sum('missing_qty'),
+            'value' => $rows->sum(fn ($it) => $it->missing_qty * $it->unit_cost),
+            'billed' => (int) \App\Models\PurchaseItem::whereHas('purchase', fn ($q) => $q->whereBetween('date', [$from, $to]))->sum('qty'),
+            'byReason' => $rows->groupBy(fn ($it) => $it->missing_reason ?: 'Missing')->map(fn ($g) => ['pairs' => $g->sum('missing_qty'), 'value' => $g->sum(fn ($it) => $it->missing_qty * $it->unit_cost)])->sortByDesc('pairs'),
+            'bySupplier' => $rows->groupBy(fn ($it) => $it->purchase->supplier->name)->map(fn ($g) => $g->sum('missing_qty'))->sortDesc(),
         ]);
     }
 

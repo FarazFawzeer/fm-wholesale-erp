@@ -9,7 +9,7 @@
     $factor = $doc->subtotal > 0 ? ($isCustomer ? $doc->total / $doc->subtotal : ($doc->subtotal - $doc->discount) / $doc->subtotal) : 1;
     $net = $doc->total - $doc->returned_amount;
     $groups = $doc->items->groupBy('product_id');
-    $left = $doc->items->sum(fn ($it) => $it->qty - $it->returned_qty);
+    $left = $doc->items->sum(fn ($it) => $it->qty - ($it->missing_qty ?? 0) - $it->returned_qty);
 @endphp
 
 @section('content')
@@ -51,7 +51,7 @@
                                 </div>
                                 @foreach ($items as $it)
                                     @php
-                                        $max = $it->qty - $it->returned_qty;
+                                        $max = $it->qty - ($isCustomer ? 0 : $it->missing_qty) - $it->returned_qty;
                                         if (! $isCustomer) $max = min($max, max(0, (int) $it->colour->qty));
                                     @endphp
                                     <div class="ret-line {{ $max <= 0 ? 'is-done' : '' }}">
@@ -59,6 +59,7 @@
                                             <x-colour-chip :name="$it->colour->title" />
                                             <div class="small text-muted">
                                                 {{ $isCustomer ? 'Sold' : 'Bought' }} {{ $it->qty }}
+                                                @if (! $isCustomer && $it->missing_qty) &middot; <span class="text-danger">{{ $it->missing_qty }} not received</span>@endif
                                                 @if ($it->returned_qty) &middot; <span class="text-danger">{{ $it->returned_qty }} already returned</span>@endif
                                                 @if (! $isCustomer) &middot; {{ $it->colour->qty }} in stock @endif
                                             </div>
@@ -71,7 +72,7 @@
                                             </div>
                                             <div class="small text-muted text-end ret-max">max {{ $max }}</div>
                                         @else
-                                            <span class="badge bg-light text-muted">{{ $isCustomer || $it->qty - $it->returned_qty <= 0 ? 'All returned' : 'No stock' }}</span>
+                                            <span class="badge bg-light text-muted">{{ $isCustomer || $it->qty - ($isCustomer ? 0 : $it->missing_qty) - $it->returned_qty <= 0 ? 'All returned' : 'No stock' }}</span>
                                         @endif
                                     </div>
                                 @endforeach

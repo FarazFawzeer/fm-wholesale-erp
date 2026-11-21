@@ -39,7 +39,9 @@ class TradeService
                 if ($name === '' && empty($c['id'])) {
                     throw ValidationException::withMessages(['items' => "Enter the colour name for {$product->name}."]);
                 }
-                $rows[] = compact('product', 'price', 'qty', 'name') + ['colour_id' => $c['id'] ?? null, 'size' => $c['size'] ?? null];
+                $missing = min($qty, max(0, (int) ($c['missing'] ?? 0)));
+                $reason = $missing ? (trim((string) ($item['missing_reason'] ?? '')) ?: 'Missing') : null;
+                $rows[] = compact('product', 'price', 'qty', 'name', 'missing', 'reason') + ['colour_id' => $c['id'] ?? null, 'size' => $c['size'] ?? null];
                 $subtotal += $qty * $price;
             }
         }
@@ -85,11 +87,16 @@ class TradeService
                     'product_id' => $r['product']->id,
                     'product_colour_id' => $colour->id,
                     'qty' => $r['qty'],
+                    'missing_qty' => $r['missing'],
+                    'missing_reason' => $r['reason'] ? mb_substr($r['reason'], 0, 60) : null,
                     'unit_price' => $r['price'],
                     'line_total' => round($r['qty'] * $r['price'], 2),
                     'unit_cost' => $unitCost,
                 ]);
                 StockService::receive($colour->id, $r['qty'], $unitCost, $purchase, 'Bought from ' . $purchase->supplier->name, $data['date']);
+                if ($r['missing'] > 0) { // paid for, but not received
+                    StockService::move($colour->id, -$r['missing'], 'missing', $unitCost, $purchase, $r['reason'], $data['date']);
+                }
             }
 
             if ($paid > 0) {
@@ -242,7 +249,7 @@ class TradeService
             $factor = $purchase->subtotal > 0 ? ($purchase->subtotal - $purchase->discount) / $purchase->subtotal : 1;
             $total = 0;
             foreach ($purchase->items as $item) {
-                $qty = min((int) ($qtys[$item->id] ?? 0), $item->qty - $item->returned_qty);
+                $qty = min((int) ($qtys[$item->id] ?? 0), $item->receivedQty() - $item->returned_qty);
                 if ($qty <= 0) {
                     continue;
                 }
