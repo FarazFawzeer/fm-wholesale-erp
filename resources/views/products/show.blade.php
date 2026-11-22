@@ -10,7 +10,8 @@
 
 @section('content')
     <x-page-header title="Product details" :crumbs="['Products' => route('products.index'), $product->code]">
-            <a href="https://wa.me/" class="btn btn-success {{ $stock <= 0 ? 'disabled' : '' }}" data-share-product data-share-text="{{ $product->shareText() }}" data-image="{{ $product->imageUrl() }}" data-file-name="{{ \Illuminate\Support\Str::slug($product->code) }}.jpg" title="Send photo + details to a customer (no price)"><i class="bx bxl-whatsapp me-1"></i>Share</a>
+            <a href="https://wa.me/" class="btn btn-success {{ $stock <= 0 ? 'disabled' : '' }}" data-share-product data-share-text="{{ $product->shareText() }}" data-image="{{ $product->imageUrl() }}" data-code="{{ $product->code }}" data-name="{{ $product->name }}" data-lines='@json($product->availableLines())' data-file-name="{{ \Illuminate\Support\Str::slug($product->code) }}.jpg" title="Send photo + details to a customer (no price)"><i class="bx bxl-whatsapp me-1"></i>Share</a>
+            <button type="button" class="btn btn-light" data-download-product title="Save the photo card (photo + item no + sizes)"><iconify-icon icon="solar:gallery-download-outline" class="align-middle me-1"></iconify-icon>Photo</button>
             <a href="{{ route('products.edit', $product) }}" class="btn btn-light"><iconify-icon icon="solar:pen-outline" class="align-middle me-1"></iconify-icon>Edit</a>
             <a href="{{ route('purchases.create', ['product' => $product->id]) }}" class="btn btn-light"><iconify-icon icon="solar:box-outline" class="align-middle me-1"></iconify-icon>Buy more</a>
             <a href="{{ route('invoices.create', ['product' => $product->id]) }}" class="btn btn-brand {{ $stock <= 0 ? 'disabled' : '' }}"><iconify-icon icon="solar:cart-large-2-outline" class="align-middle me-1"></iconify-icon>Sell</a>
@@ -200,5 +201,6 @@
 @endsection
 
 @push('page-js')
+    @include('partials.photo-card')
     @include('partials.share-product')
 @endpush

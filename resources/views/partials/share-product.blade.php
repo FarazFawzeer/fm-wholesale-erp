@@ -5,16 +5,29 @@
     if (window.__shareProduct) return;
     window.__shareProduct = true;
     const files = {};
+    // the photo card (photo + item no + sizes) is made as soon as the page opens
     const prepare = (btn) => {
         const url = btn.dataset.image;
         if (!url || files[url]) return;
-        files[url] = fetch(url, { credentials: 'same-origin' })
-            .then((r) => (r.ok ? r.blob() : null))
-            .then((b) => (files[url].file = b ? new File([b], btn.dataset.fileName || 'product.jpg', { type: b.type || 'image/jpeg' }) : null))
-            .catch(() => null);
+        const make = window.fmPhotoCard
+            ? window.fmPhotoCard({ code: btn.dataset.code, name: btn.dataset.name, image: url, lines: JSON.parse(btn.dataset.lines || '[]') })
+            : fetch(url, { credentials: 'same-origin' }).then((r) => (r.ok ? r.blob() : null))
+                .then((b) => (b ? new File([b], btn.dataset.fileName || 'product.jpg', { type: b.type || 'image/jpeg' }) : null));
+        files[url] = make.then((f) => (files[url].file = f)).catch(() => null);
     };
     const ready = () => document.querySelectorAll('[data-share-product]').forEach(prepare);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready); else ready();
+
+    // "Photo" button: save the same photo card
+    document.addEventListener('click', async (e) => {
+        const dl = e.target.closest('[data-download-product]');
+        if (!dl) return;
+        const btn = document.querySelector('[data-share-product]');
+        if (!btn) return;
+        prepare(btn);
+        const file = await files[btn.dataset.image];
+        if (file && window.fmSaveFiles) window.fmSaveFiles([file]);
+    });
 
     document.addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-share-product]');

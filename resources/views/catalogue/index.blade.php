@@ -5,7 +5,7 @@
 
     <div class="cat-intro mb-3">
         <iconify-icon icon="solar:gallery-send-outline"></iconify-icon>
-        <div>Tick the products the customer should see, then tap <b>WhatsApp PDF</b>. The PDF shows the photo, item no and the colours / sizes in stock. <b>No prices.</b></div>
+        <div>Tick the products, then tap <b>Photos</b> to send each one as a WhatsApp photo with the <b>item no</b> printed on it - the customer can simply send back the photo they want. Or send everything as one <b>PDF</b>. <b>No prices.</b></div>
     </div>
 
     <div class="cat-tools mb-3" data-cat-tools>
@@ -20,6 +20,7 @@
         <div class="cat-btns">
             <button type="button" class="btn btn-sm btn-light js-cat-all"><iconify-icon icon="solar:check-square-outline" class="align-middle me-1"></iconify-icon>Tick all shown</button>
             <button type="button" class="btn btn-sm btn-light js-cat-none">Clear</button>
+            <label class="cat-pairs-opt"><input type="checkbox" class="form-check-input js-cat-pairs"> Show pairs</label>
         </div>
     </div>
 
@@ -30,6 +31,8 @@
     <div class="cat-grid js-cat-grid">
         @foreach ($products as $p)
             <label class="cat-card" data-id="{{ $p->id }}" data-type="{{ $p->category_id }}"
+                data-code="{{ $p->code }}" data-name="{{ $p->name }}" data-image="{{ $p->imageUrl() }}"
+                data-lines='@json($p->availableLines())' data-lines-pairs='@json($p->availableLines(true))'
                 data-hay="{{ strtolower(implode(' ', [$p->code, $p->name, $p->brand?->name, $p->category?->name, $p->colours->pluck('colour')->implode(' ')])) }}">
                 <input type="checkbox" class="js-cat-check" value="{{ $p->id }}" @checked(in_array($p->id, $selected))>
                 <span class="cat-tick"><iconify-icon icon="solar:check-read-linear"></iconify-icon></span>
@@ -49,26 +52,52 @@
     <div class="cat-bar" data-cat-bar data-pdf="{{ route('catalogue.pdf') }}" data-max="{{ \App\Http\Controllers\CatalogueController::MAX }}">
         <div class="cat-bar-in">
             <div class="cat-count"><b class="js-cat-count">0</b> <span>selected</span></div>
-            <label class="cat-pairs-opt"><input type="checkbox" class="form-check-input js-cat-pairs"> Show pairs</label>
-            <a href="#" class="btn btn-light js-cat-download disabled" download><iconify-icon icon="solar:file-download-outline" class="align-middle"></iconify-icon><span class="d-none d-sm-inline ms-1">Download</span></a>
-            <a href="https://wa.me/" target="_blank" rel="noopener" class="btn btn-success js-cat-send disabled" data-share-pdf="" data-file-name="Catalogue-{{ now()->format('Y-m-d') }}.pdf" data-wa="https://wa.me/"><i class="bx bxl-whatsapp me-1"></i><span>WhatsApp PDF</span></a>
+            <div class="dropup">
+                <button type="button" class="btn btn-light js-cat-dl-btn disabled" data-bs-toggle="dropdown" aria-expanded="false" title="Download"><iconify-icon icon="solar:file-download-outline" class="align-middle"></iconify-icon><span class="d-none d-md-inline ms-1">Download</span></button>
+                <div class="dropdown-menu cat-dl-menu">
+                    <button type="button" class="dropdown-item js-cat-dl-photos"><iconify-icon icon="solar:gallery-outline"></iconify-icon><span><b>Photos</b><small>One JPG per product</small></span></button>
+                    <a href="#" class="dropdown-item js-cat-download" download><iconify-icon icon="solar:document-text-outline"></iconify-icon><span><b>PDF</b><small>All in one catalogue</small></span></a>
+                </div>
+            </div>
+            <a href="https://wa.me/" target="_blank" rel="noopener" class="btn btn-outline-success js-cat-send disabled" data-share-pdf="" data-file-name="Catalogue-{{ now()->format('Y-m-d') }}.pdf" data-wa="https://wa.me/" title="Send all as one PDF"><iconify-icon icon="solar:document-text-outline" class="align-middle me-1"></iconify-icon><span>PDF</span></a>
+            <button type="button" class="btn btn-success js-cat-photos disabled" title="Send each product as a photo"><i class="bx bxl-whatsapp me-1"></i><span>Photos</span></button>
         </div>
     </div>
 @endsection
 
 @push('page-js')
     @include('partials.share-pdf')
+    @include('partials.photo-card')
     <script>
     (function () {
         const grid = document.querySelector('.js-cat-grid');
         const bar = document.querySelector('[data-cat-bar]');
         const send = bar.querySelector('.js-cat-send');
         const dl = bar.querySelector('.js-cat-download');
-        const pairs = bar.querySelector('.js-cat-pairs');
+        const pairs = document.querySelector('.js-cat-pairs');
         const q = document.querySelector('.js-cat-q');
         const max = parseInt(bar.dataset.max);
+        const photosBtn = bar.querySelector('.js-cat-photos');
+        const dlBtn = bar.querySelector('.js-cat-dl-btn');
+        const dlPhotos = bar.querySelector('.js-cat-dl-photos');
+        const PHOTO_MAX = 30; // WhatsApp sends up to 30 photos at once
+        const cards = {};     // "id|pairs" -> Promise<File>
         let type = '';
         let timer = null;
+        let photoTimer = null;
+        const toast = (m) => { let t = document.getElementById('share-pdf-toast'); if (!t) { t = document.createElement('div'); t.id = 'share-pdf-toast'; t.style.cssText = 'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 16px;border-radius:10px;font:500 14px Inter,sans-serif;z-index:9999;max-width:92vw;text-align:center'; document.body.appendChild(t); } t.textContent = m; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => (t.style.display = 'none'), 7000); };
+        const cardFor = (id) => {
+            const key = id + '|' + (pairs.checked ? 1 : 0);
+            if (!cards[key]) {
+                const el = grid.querySelector(`.cat-card[data-id="${id}"]`);
+                cards[key] = window.fmPhotoCard({ code: el.dataset.code, name: el.dataset.name, image: el.dataset.image,
+                    lines: JSON.parse(pairs.checked ? el.dataset.linesPairs : el.dataset.lines) });
+                cards[key].then((f) => (cards[key].file = f));
+            }
+            return cards[key];
+        };
+        const photoFiles = (ids) => ids.map((id) => cards[id + '|' + (pairs.checked ? 1 : 0)]?.file);
+        const setPhotoLabel = (t) => (photosBtn.querySelector('span').textContent = t || 'Photos');
 
         const checked = () => [...grid.querySelectorAll('.js-cat-check:checked')].map((c) => c.value);
         const update = () => {
@@ -78,6 +107,12 @@
             const over = ids.length > max;
             const url = ids.length && !over ? bar.dataset.pdf + '?ids=' + ids.join(',') + (pairs.checked ? '&pairs=1' : '') : '';
             [send, dl].forEach((b) => b.classList.toggle('disabled', !url));
+            dlBtn.classList.toggle('disabled', !ids.length);
+            dlPhotos.classList.toggle('disabled', !ids.length || ids.length > PHOTO_MAX);
+            photosBtn.classList.toggle('disabled', !ids.length || ids.length > PHOTO_MAX);
+            setPhotoLabel(ids.length > PHOTO_MAX ? 'Max ' + PHOTO_MAX + ' photos' : '');
+            clearTimeout(photoTimer);
+            if (ids.length && ids.length <= PHOTO_MAX) photoTimer = setTimeout(() => ids.forEach(cardFor), 600); // ready before the tap
             bar.querySelector('.cat-count span').textContent = over ? 'selected - max ' + max : 'selected';
             dl.href = url ? url + '&download=1' : '#';
             if (send.dataset.sharePdf !== url) {
@@ -118,6 +153,41 @@
             update();
         });
         [send, dl].forEach((b) => b.addEventListener('click', (e) => { if (b.classList.contains('disabled')) e.preventDefault(); }, true));
+
+        // Download the photo cards (saved to Downloads / Gallery)
+        dlPhotos.addEventListener('click', async () => {
+            const ids = checked();
+            if (!ids.length || ids.length > PHOTO_MAX) return;
+            toast('Saving ' + ids.length + (ids.length === 1 ? ' photo...' : ' photos...'));
+            const files = (await Promise.all(ids.map(cardFor))).filter(Boolean);
+            window.fmSaveFiles(files);
+            toast(files.length + (files.length === 1 ? ' photo' : ' photos') + ' saved to Downloads. If the browser asks, allow downloading several files.');
+        });
+
+        // Send each ticked product as a photo (phone share sheet -> WhatsApp -> customer)
+        photosBtn.addEventListener('click', async () => {
+            const ids = checked();
+            if (!ids.length || ids.length > PHOTO_MAX || photosBtn.dataset.busy) return;
+            let files = photoFiles(ids);
+            if (files.every(Boolean)) {
+                setPhotoLabel();
+                await window.fmShareFiles(files, toast);
+                return;
+            }
+            // not ready yet: make them, then ask for one more tap (phones need a fresh tap to open the share sheet)
+            photosBtn.dataset.busy = '1';
+            setPhotoLabel('Preparing...');
+            try {
+                await Promise.all(ids.map(cardFor));
+                setPhotoLabel('Ready - tap to send');
+                toast('Photos are ready. Tap the Photos button again to send.');
+            } catch (e) {
+                setPhotoLabel();
+                toast('Could not make the photos. Please try again.');
+            } finally {
+                delete photosBtn.dataset.busy;
+            }
+        });
         update();
     })();
     </script>
